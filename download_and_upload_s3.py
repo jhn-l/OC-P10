@@ -42,10 +42,25 @@ import boto3
 def lambda_handler(event, context):
     dynamodb = boto3.client('dynamodb')
     user_id = event.get('user_id')
+    
     if not user_id:
         return {"statusCode": 400, "body": "user_id is required"}
+
     response = dynamodb.get_item(TableName='UserRecommendations', Key={'user_id': {'S': user_id}})
-    return {"statusCode": 200, "body": json.dumps(response.get('Item', {}))}
+    
+    if 'Item' not in response:
+        return {"statusCode": 404, "body": json.dumps({"error": "User not found"})}
+
+    # Extraction propre des recommandations
+    recommendations = [int(item['N']) for item in response['Item']['recommendations']['L']]
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "user_id": user_id,
+            "recommendations": recommendations
+        })
+    }
 '''
     
     os.makedirs("lambda_code", exist_ok=True)
