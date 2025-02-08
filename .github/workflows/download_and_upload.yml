@@ -1,0 +1,29 @@
+name: Download and Upload Data to S3
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Permet d'exécuter le workflow manuellement
+
+jobs:
+  download-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v3
+
+      - name: Installer les dépendances Python
+        run: |
+          sudo apt update
+          sudo apt install -y unzip
+          python -m pip install --upgrade pip
+          pip install boto3 requests
+
+      - name: Exécuter le script Python
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: python download_and_upload_s3.py
