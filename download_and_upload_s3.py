@@ -60,7 +60,7 @@ if __name__ == "__main__":
     else:
         print("⚠️ clicks.zip n'a pas été trouvé !")
 
-    # 📌 Étape 4 : Upload des fichiers extraits vers S3
+    # 📌 Étape 4 : Upload des fichiers principaux vers S3
     files_to_upload = [
         "articles_metadata.csv",
         "articles_embeddings.pickle",
@@ -72,5 +72,15 @@ if __name__ == "__main__":
             upload_to_s3(file_path, file_path)  # Envoie avec le même nom
         else:
             print(f"⚠️ Fichier introuvable : {file_path}")
+
+    # 📌 Étape 5 : Upload des fichiers horaires "clicks/clicks_hour_XXX.csv"
+    clicks_folder = "clicks"
+    if os.path.exists(clicks_folder):
+        for file in os.listdir(clicks_folder):
+            file_path = os.path.join(clicks_folder, file)
+            if os.path.isfile(file_path):
+                upload_to_s3(file_path, f"clicks/{file}")  # Stocker dans un dossier clicks/ sur S3
+    else:
+        print("⚠️ Aucun dossier 'clicks/' trouvé, aucun fichier supplémentaire à uploader.")
 
     print("🚀 Processus terminé !")
