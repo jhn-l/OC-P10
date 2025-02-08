@@ -41,25 +41,29 @@ import boto3
 
 def lambda_handler(event, context):
     dynamodb = boto3.client('dynamodb')
-    user_id = event.get('user_id')
+
+    # Vérifier comment les données sont envoyées
+    print("EVENT:", json.dumps(event))
+
+    # Vérifier si API Gateway envoie les données sous "body"
+    if "body" in event:
+        event_body = json.loads(event["body"])
+    else:
+        event_body = event
+
+    user_id = event_body.get("user_id")
     
     if not user_id:
-        return {"statusCode": 400, "body": "user_id is required"}
-
-    response = dynamodb.get_item(TableName='UserRecommendations', Key={'user_id': {'S': user_id}})
+        return {"statusCode": 400, "body": json.dumps("user_id is required")}
     
-    if 'Item' not in response:
-        return {"statusCode": 404, "body": json.dumps({"error": "User not found"})}
-
-    # Extraction propre des recommandations
-    recommendations = [int(item['N']) for item in response['Item']['recommendations']['L']]
-
+    response = dynamodb.get_item(
+        TableName='UserRecommendations',
+        Key={'user_id': {'S': user_id}}
+    )
+    
     return {
         "statusCode": 200,
-        "body": json.dumps({
-            "user_id": user_id,
-            "recommendations": recommendations
-        })
+        "body": json.dumps(response.get("Item", {}))
     }
 '''
     
