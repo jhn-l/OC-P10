@@ -5,7 +5,7 @@ import boto3
 
 # 📌 Configuration des variables
 DATA_URL = "https://s3-eu-west-1.amazonaws.com/static.oc-static.com/prod/courses/files/AI+Engineer/Project+9+-+R%C3%A9alisez+une+application+mobile+de+recommandation+de+contenu/news-portal-user-interactions-by-globocom.zip"
-ZIP_FILE = "news_data.zip"
+ZIP_FILE = "news-portal.zip"
 EXTRACTED_FOLDER = "news-portal-user-interactions-by-globocom"
 CLICK_ZIP_FILE = os.path.join(EXTRACTED_FOLDER, "clicks.zip")
 S3_BUCKET_NAME = "my-recommender-dataset"
@@ -52,13 +52,18 @@ if __name__ == "__main__":
     # 📌 Étape 2 : Décompresser le fichier principal
     extract_zip_file(ZIP_FILE, ".")
 
-    # 📌 Étape 3 : Décompresser clicks.zip
+    # 📌 Étape 3 : Vérifier le dossier extrait
+    if not os.path.exists(EXTRACTED_FOLDER):
+        print(f"❌ Erreur : le dossier extrait {EXTRACTED_FOLDER} n'existe pas ! Vérifiez le contenu du ZIP.")
+        exit(1)
+
+    # 📌 Étape 4 : Décompresser clicks.zip
     if os.path.exists(CLICK_ZIP_FILE):
         extract_zip_file(CLICK_ZIP_FILE, EXTRACTED_FOLDER)
     else:
         print("⚠️ clicks.zip n'a pas été trouvé !")
 
-    # 📌 Étape 4 : Upload des fichiers extraits vers S3
+    # 📌 Étape 5 : Upload des fichiers extraits vers S3
     files_to_upload = [
         os.path.join(EXTRACTED_FOLDER, "articles_metadata.csv"),
         os.path.join(EXTRACTED_FOLDER, "articles_embeddings.pickle"),
