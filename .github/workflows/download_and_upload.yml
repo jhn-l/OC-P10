@@ -60,7 +60,7 @@ jobs:
           import boto3, json
 
           lambda_client = boto3.client('lambda', region_name='${{ secrets.AWS_REGION }}')
-          role_arn = "arn:aws:iam::YOUR_ACCOUNT_ID:role/YOUR_LAMBDA_ROLE"
+          role_arn = "arn:aws:iam::897722693914:role/LambdaDynamoDBRole"
 
           lambda_code = """
           import json
