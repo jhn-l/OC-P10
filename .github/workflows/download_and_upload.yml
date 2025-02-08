@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Permet d'exécuter le workflow manuellement
+  workflow_dispatch:
 
 jobs:
   setup-infrastructure:
@@ -18,93 +18,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install boto3 requests
 
-      - name: Créer la table DynamoDB UserRecommendations
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          python <<EOF
-          import boto3
-          dynamodb = boto3.client('dynamodb', region_name='${{ secrets.AWS_REGION }}')
-          
-          table_name = 'UserRecommendations'
-          try:
-              dynamodb.create_table(
-                  TableName=table_name,
-                  KeySchema=[{'AttributeName': 'user_id', 'KeyType': 'HASH'}],
-                  AttributeDefinitions=[{'AttributeName': 'user_id', 'AttributeType': 'S'}],
-                  ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5}
-              )
-              print(f'Table {table_name} créée avec succès.')
-          except dynamodb.exceptions.ResourceInUseException:
-              print(f'Table {table_name} existe déjà.')
-
-          items = [
-              {"user_id": {"S": "115523"}, "recommendations": {"L": [{"N": "149738"}, {"N": "103086"}, {"N": "156457"}, {"N": "103074"}, {"N": "103137"}]}},
-              {"user_id": {"S": "10234"}, "recommendations": {"L": [{"N": "394"}, {"N": "3144"}, {"N": "3145"}, {"N": "3232"}, {"N": "3434"}]}}
-          ]
-
-          for item in items:
-              dynamodb.put_item(TableName=table_name, Item=item)
-          print('Données insérées dans la table DynamoDB.')
-          EOF
-
-      - name: Déployer AWS Lambda
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          python <<EOF
-          import boto3, json
-
-          lambda_client = boto3.client('lambda', region_name='${{ secrets.AWS_REGION }}')
-          role_arn = "arn:aws:iam::897722693914:role/LambdaDynamoDBRole"
-
-          lambda_code = """
-          import json
-          import boto3
-
-          def lambda_handler(event, context):
-              dynamodb = boto3.client('dynamodb')
-              user_id = event.get('user_id')
-              if not user_id:
-                  return {"statusCode": 400, "body": "user_id is required"}
-              response = dynamodb.get_item(TableName='UserRecommendations', Key={'user_id': {'S': user_id}})
-              return {"statusCode": 200, "body": json.dumps(response.get('Item', {}))}
-          """
-
-          try:
-              lambda_client.create_function(
-                  FunctionName='GetUserRecommendations',
-                  Runtime='python3.8',
-                  Role=role_arn,
-                  Handler='index.lambda_handler',
-                  Code={'ZipFile': bytes(lambda_code, 'utf-8')},
-                  Timeout=15,
-                  MemorySize=128
-              )
-              print('AWS Lambda déployée avec succès.')
-          except lambda_client.exceptions.ResourceConflictException:
-              print('AWS Lambda existe déjà.')
-          EOF
-
-  download-and-upload:
-    runs-on: ubuntu-latest
-    needs: setup-infrastructure
-    steps:
-      - name: Checkout du code
-        uses: actions/checkout@v3
-
-      - name: Installer les dépendances Python
-        run: |
-          sudo apt update
-          sudo apt install -y unzip
-          python -m pip install --upgrade pip
-          pip install boto3 requests
-
-      - name: Exécuter le script Python
+      - name: Exécuter le script d'initialisation (création DynamoDB + Upload S3)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
