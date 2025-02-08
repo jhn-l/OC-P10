@@ -22,35 +22,50 @@ s3_client = boto3.client(
     region_name=AWS_REGION,
 )
 
+def file_exists_in_s3(s3_key):
+    """Vérifie si un fichier existe déjà sur S3."""
+    try:
+        s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=s3_key)
+        return True
+    except:
+        return False
+
 def download_zip_file():
-    """Télécharge le fichier ZIP depuis l'URL fournie"""
-    print(f"🔹 Téléchargement de {DATA_URL}...")
-    response = requests.get(DATA_URL, stream=True)
-    with open(ZIP_FILE, "wb") as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            f.write(chunk)
-    print("✅ Téléchargement terminé !")
+    """Télécharge le fichier ZIP depuis l'URL fournie si non présent"""
+    if not os.path.exists(ZIP_FILE):
+        print(f"🔹 Téléchargement de {DATA_URL}...")
+        response = requests.get(DATA_URL, stream=True)
+        with open(ZIP_FILE, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        print("✅ Téléchargement terminé !")
+    else:
+        print("✅ Fichier ZIP déjà présent, téléchargement ignoré.")
 
 def extract_zip_file(zip_path, extract_to):
-    """Décompresse un fichier ZIP et affiche son contenu"""
-    print(f"🔹 Décompression de {zip_path}...")
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(extract_to)
-        extracted_files = zip_ref.namelist()  # Liste des fichiers extraits
-    print("✅ Décompression terminée !")
-    print(f"📂 Contenu extrait :\n{extracted_files}")
+    """Décompresse un fichier ZIP si non extrait"""
+    if not os.path.exists(extract_to + "/articles_metadata.csv"):
+        print(f"🔹 Décompression de {zip_path}...")
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(extract_to)
+        print("✅ Décompression terminée !")
+    else:
+        print("✅ Fichiers déjà extraits, extraction ignorée.")
 
 def upload_to_s3(file_path, s3_key):
-    """Téléverse un fichier vers AWS S3"""
-    print(f"🔹 Upload de {file_path} vers S3 ({S3_BUCKET_NAME}/{s3_key})...")
-    s3_client.upload_file(file_path, S3_BUCKET_NAME, s3_key)
-    print(f"✅ {file_path} uploadé avec succès !")
+    """Téléverse un fichier vers AWS S3 si non présent"""
+    if not file_exists_in_s3(s3_key):
+        print(f"🔹 Upload de {file_path} vers S3 ({S3_BUCKET_NAME}/{s3_key})...")
+        s3_client.upload_file(file_path, S3_BUCKET_NAME, s3_key)
+        print(f"✅ {file_path} uploadé avec succès !")
+    else:
+        print(f"✅ {file_path} déjà présent sur S3, upload ignoré.")
 
 if __name__ == "__main__":
-    # 📌 Étape 1 : Télécharger le fichier ZIP
+    # 📌 Étape 1 : Télécharger le fichier ZIP si nécessaire
     download_zip_file()
 
-    # 📌 Étape 2 : Décompresser directement dans le dossier courant
+    # 📌 Étape 2 : Décompresser si nécessaire
     extract_zip_file(ZIP_FILE, EXTRACTED_FOLDER)
 
     # 📌 Étape 3 : Vérifier et extraire clicks.zip si présent
@@ -60,7 +75,7 @@ if __name__ == "__main__":
     else:
         print("⚠️ clicks.zip n'a pas été trouvé !")
 
-    # 📌 Étape 4 : Upload des fichiers principaux vers S3
+    # 📌 Étape 4 : Upload des fichiers principaux vers S3 si nécessaire
     files_to_upload = [
         "articles_metadata.csv",
         "articles_embeddings.pickle",
@@ -73,7 +88,7 @@ if __name__ == "__main__":
         else:
             print(f"⚠️ Fichier introuvable : {file_path}")
 
-    # 📌 Étape 5 : Upload des fichiers horaires "clicks/clicks_hour_XXX.csv"
+    # 📌 Étape 5 : Upload des fichiers horaires "clicks/clicks_hour_XXX.csv" si nécessaires
     clicks_folder = "clicks"
     if os.path.exists(clicks_folder):
         for file in os.listdir(clicks_folder):
