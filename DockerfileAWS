@@ -22,8 +22,11 @@ RUN python3 train.py
 FROM base
 WORKDIR /var/task
 
+# ✅ **Installer à nouveau `gcc` avant `pip install`**
+RUN yum install -y gcc gcc-c++ make libstdc++-devel
+
 # Installer `scikit-learn`, `surprise` et `boto3` pour l’inférence
-RUN pip install --no-cache-dir scikit-learn surprise boto3
+RUN pip install --no-cache-dir scikit-learn sickit-surprise boto3
 
 # Copier le modèle entraîné depuis l’étape `train`
 COPY --from=train /tmp/recommender_model_hybrid.pkl /var/task/recommender_model_hybrid.pkl
