@@ -42,8 +42,12 @@ jobs:
           LAYER_VERSION=$(aws lambda publish-layer-version \
             --layer-name HybridRecommenderDependencies \
             --zip-file fileb://dependencies_layer.zip \
-            --compatible-runtimes python3.8 \
-            --query 'Version' --output text)
+            --compatible-runtimes python3.8 python3.9 \
+            --query 'Version' --output text || echo "")
+          if [ -z "$LAYER_VERSION" ]; then
+            echo "❌ Erreur: Impossible de récupérer la version du Layer"
+            exit 1
+          fi
           echo "LAYER_VERSION=$LAYER_VERSION" >> $GITHUB_ENV
 
       - name: 📦 Packager la Lambda Hybrid Recommender (sans dépendances)
@@ -67,13 +71,23 @@ jobs:
               --zip-file fileb://hybrid_recommender.zip
           else
             echo "🚀 Création de la Lambda HybridRecommender..."
-            aws lambda create-function \
-              --function-name HybridRecommenderLambda \
-              --runtime python3.8 \
-              --role $AWS_LAMBDA_ROLE_ARN \
-              --handler hybrid_recommender.lambda_handler \
-              --zip-file fileb://hybrid_recommender.zip \
-              --layers arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:layer:HybridRecommenderDependencies:$LAYER_VERSION
+            if [ ! -z "$LAYER_VERSION" ]; then
+              aws lambda create-function \
+                --function-name HybridRecommenderLambda \
+                --runtime python3.8 \
+                --role $AWS_LAMBDA_ROLE_ARN \
+                --handler hybrid_recommender.lambda_handler \
+                --zip-file fileb://hybrid_recommender.zip \
+                --layers arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:layer:HybridRecommenderDependencies:$LAYER_VERSION
+            else
+              echo "⚠️ Layer non défini, création sans layer..."
+              aws lambda create-function \
+                --function-name HybridRecommenderLambda \
+                --runtime python3.8 \
+                --role $AWS_LAMBDA_ROLE_ARN \
+                --handler hybrid_recommender.lambda_handler \
+                --zip-file fileb://hybrid_recommender.zip
+            fi
           fi
 
       - name: Déployer API Gateway
