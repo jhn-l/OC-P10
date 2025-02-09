@@ -27,15 +27,33 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: python download_and_upload_s3.py
       
-      - name: 📦 Packager la Lambda Hybrid Recommender avec dépendances
+      - name: 📦 Créer un Layer pour les dépendances
+        run: |
+          mkdir -p python
+          pip install --target=python pandas numpy scikit-learn surprise boto3
+          zip -r9 dependencies_layer.zip python
+
+      - name: 🚀 Déployer le Layer AWS Lambda
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          LAYER_VERSION=$(aws lambda publish-layer-version \
+            --layer-name HybridRecommenderDependencies \
+            --zip-file fileb://dependencies_layer.zip \
+            --compatible-runtimes python3.8 \
+            --query 'Version' --output text)
+          echo "LAYER_VERSION=$LAYER_VERSION" >> $GITHUB_ENV
+
+      - name: 📦 Packager la Lambda Hybrid Recommender (sans dépendances)
         run: |
           mkdir -p lambda_package
           cp hybrid_recommender.py lambda_package/
-          pip install --target=lambda_package pandas numpy scikit-learn surprise boto3
           cd lambda_package
           zip -r9 ../hybrid_recommender.zip .
 
-      - name: 🚀 Déployer la Lambda Hybrid Recommender
+      - name: 🚀 Déployer la Lambda Hybrid Recommender avec Layer
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -43,18 +61,19 @@ jobs:
           AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
         run: |
           if aws lambda get-function --function-name HybridRecommenderLambda > /dev/null 2>&1; then
-            echo "⚠️ La fonction HybridRecommenderLambda existe déjà. Mise à jour..."
+            echo "⚠️ Mise à jour de la Lambda HybridRecommender..."
             aws lambda update-function-code \
               --function-name HybridRecommenderLambda \
               --zip-file fileb://hybrid_recommender.zip
           else
-            echo "🚀 Création de la fonction Lambda HybridRecommender..."
+            echo "🚀 Création de la Lambda HybridRecommender..."
             aws lambda create-function \
               --function-name HybridRecommenderLambda \
               --runtime python3.8 \
               --role $AWS_LAMBDA_ROLE_ARN \
               --handler hybrid_recommender.lambda_handler \
-              --zip-file fileb://hybrid_recommender.zip
+              --zip-file fileb://hybrid_recommender.zip \
+              --layers arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:layer:HybridRecommenderDependencies:$LAYER_VERSION
           fi
 
       - name: Déployer API Gateway
