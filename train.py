@@ -8,7 +8,7 @@ from surprise import Dataset, Reader, SVD
 S3_BUCKET_NAME = "my-recommender-dataset"
 s3 = boto3.client("s3")
 MODEL_PATH = "/tmp/recommender_model_hybrid.pkl"
-
+CLICKS_PATH = "clicks/"
 
 # 📌 Charger un fichier depuis S3 en DataFrame
 def load_csv_from_s3(file_key):
