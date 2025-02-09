@@ -5,7 +5,7 @@ FROM python:3.12-slim
 WORKDIR /var/task
 
 # 🔹 Installer les dépendances système pour compiler `scikit-surprise`
-RUN apt-get update && apt-get install -y gcc g++ make libstdc++-dev
+RUN apt-get update && apt-get install -y gcc g++ make libstdc++-12-dev
 
 # 🔹 Définition des variables d'environnement pour éviter les erreurs de `surprise`
 ENV SURPRISE_DATASET_DIR=/tmp
