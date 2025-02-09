@@ -2,7 +2,7 @@
 FROM public.ecr.aws/lambda/python:3.8
 
 # Définir un répertoire de travail dans /tmp (évite les erreurs de permission)
-WORKDIR /tmp
+WORKDIR /var/task
 
 # Installer les outils de compilation (gcc, g++, libc-dev)
 RUN yum install -y gcc gcc-c++ make libstdc++-devel
