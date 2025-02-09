@@ -14,7 +14,7 @@ S3_BUCKET_NAME = "my-recommender-dataset"
 s3 = boto3.client("s3")
 
 # 📌 Chemins des fichiers (adaptés pour AWS Lambda)
-CLICKS_PATH = "clicks_sample.csv"
+CLICKS_PATH = "clicks/"
 ARTICLES_METADATA_PATH = "articles_metadata.csv"
 EMBEDDINGS_PATH = "articles_embeddings.pickle"
 MODEL_PATH = "/tmp/recommender_model_hybrid.pkl"  # Utilisation de /tmp pour AWS Lambda
@@ -27,7 +27,9 @@ def load_csv_from_s3(file_key):
 # 📌 Charger les interactions utilisateur-article
 def load_interactions():
     print("🔹 Chargement des interactions utilisateur-article...")
-    interactions_df = load_csv_from_s3(CLICKS_PATH)
+    all_files = [os.path.join(CLICKS_PATH, f) for f in os.listdir(CLICKS_PATH) if f.startswith("clicks_hour_") and f.endswith(".csv")]
+    df_list = [pd.read_csv(f) for f in all_files]
+    interactions_df = pd.concat(df_list, ignore_index=True)
     interactions_df.rename(columns={"click_article_id": "article_id"}, inplace=True)
     interactions_df["article_id"] = interactions_df["article_id"].astype(int)
     print("✅ Interactions chargées - Nombre de lignes:", interactions_df.shape[0])
@@ -61,8 +63,21 @@ def train_collaborative_model(interactions_df):
     with open(MODEL_PATH, "wb") as f:
         pickle.dump(model, f)
     
+    upload_model_to_s3()
+
     print("🚀 Modèle entraîné et sauvegardé avec succès !")
     return model
+
+def upload_model_to_s3():
+    s3_client = boto3.client("s3")
+    bucket_name = "my-recommender-dataset"  # ⚠️ Remplace par le nom exact de ton bucket
+    model_filename = "recommender_model_hybrid.pkl"
+
+    print(f"🚀 Upload du modèle vers S3: {bucket_name}/{model_filename}...")
+    
+    s3_client.upload_file(MODEL_PATH, bucket_name, model_filename)
+
+    print("✅ Modèle uploadé avec succès sur S3 !")
 
 # 📌 Recommander des articles avec méthode hybride
 def hybrid_recommendation(user_id, interactions_df, embeddings, model, top_n=5, alpha=0.5):
