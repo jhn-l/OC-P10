@@ -4,7 +4,6 @@ import numpy as np
 import pickle
 import boto3
 import logging
-import matplotlib.pyplot as plt
 from surprise import Dataset, Reader, SVD
 from surprise.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
