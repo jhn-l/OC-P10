@@ -4,9 +4,18 @@ import boto3
 import pandas as pd
 import numpy as np
 import pickle
+
+# 📌 Définir le dossier temporaire pour `surprise`
+os.environ["SURPRISE_DATASET_DIR"] = "/tmp"
+
 from surprise import SVD, Dataset, Reader
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
+
+os.environ["JOBLIB_MULTIPROCESSING"] = "0"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 # 📌 Configuration AWS S3 et DynamoDB
 S3_BUCKET_NAME = "my-recommender-dataset"
@@ -17,8 +26,6 @@ MODEL_LOCAL_PATH = "/tmp/recommender_model_hybrid.pkl"  # Utilisation de /tmp po
 s3 = boto3.client("s3")
 dynamodb = boto3.client("dynamodb")
 
-# 📌 Définir le dossier temporaire pour `surprise`
-os.environ["SURPRISE_DATASET_DIR"] = "/tmp"
 
 # 📌 Empêcher `surprise` de télécharger des datasets intégrés
 Dataset.load_builtin = lambda name: None

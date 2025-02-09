@@ -2,7 +2,14 @@ import os
 import boto3
 import pandas as pd
 import pickle
+
 from surprise import Dataset, Reader, SVD
+os.environ["JOBLIB_MULTIPROCESSING"] = "0"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+Dataset.load_builtin = lambda name: None
 
 # 📌 Configurer AWS
 S3_BUCKET_NAME = "my-recommender-dataset"
