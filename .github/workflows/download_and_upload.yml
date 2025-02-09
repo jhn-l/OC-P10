@@ -27,10 +27,11 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: python download_and_upload_s3.py
       
-      - name: 📦 Packager la Lambda Hybrid Recommender
+      - name: 📦 Packager la Lambda Hybrid Recommender avec dépendances
         run: |
           mkdir -p lambda_package
           cp hybrid_recommender.py lambda_package/
+          pip install --target=lambda_package pandas numpy scikit-learn surprise boto3
           cd lambda_package
           zip -r9 ../hybrid_recommender.zip .
 
