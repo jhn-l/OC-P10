@@ -5,10 +5,10 @@ FROM public.ecr.aws/lambda/python:3.8
 RUN yum install -y gcc gcc-c++ make
 
 # Copier les fichiers nécessaires
-COPY requirements.txt ./
+#COPY requirements.txt ./
 
 # Installation des dépendances Python
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3
 
 # Copier le fichier du moteur de recommandation
 COPY hybrid_recommender.py ./

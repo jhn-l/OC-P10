@@ -9,6 +9,8 @@ from surprise import Dataset, Reader, SVD
 from surprise.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
+import surprise
+surprise.dataset.get_dataset_dir = lambda: "/tmp"
 
 # 📌 Paramètres AWS S3 et DynamoDB
 S3_BUCKET_NAME = "my-recommender-dataset"
