@@ -10,9 +10,9 @@ RUN yum install -y gcc gcc-c++ make libstdc++-devel
 # 🔹 Définition des variables d'environnement pour éviter les erreurs de Surprise
 ENV SURPRISE_DATASET_DIR=/tmp
 
-# 🔹 Installation des dépendances Python dans le bon chemin pour Python 3.8
+# 🔹 Installation des dépendances Python dans `/var/task` pour AWS Lambda
 RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3 \
-    --target /var/lang/lib/python3.8/site-packages
+    --target /var/task
 
 # 🔹 Copier le fichier source dans le conteneur
 COPY hybrid_recommender.py .
