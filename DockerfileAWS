@@ -4,8 +4,8 @@ FROM public.ecr.aws/lambda/python:3.12
 # Définition du répertoire de travail
 WORKDIR /var/task
 
-# Installation des outils de compilation
-RUN yum install -y gcc gcc-c++ make libstdc++-devel
+# 🔹 Mise à jour des paquets et installation des outils de compilation
+RUN apt-get update && apt-get install -y gcc g++ make libstdc++-dev
 
 # 🔹 Définition des variables d'environnement pour forcer Surprise à utiliser /tmp
 ENV SURPRISE_DATASET_DIR=/tmp
