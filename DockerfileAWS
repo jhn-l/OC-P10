@@ -1,0 +1,12 @@
+# Utiliser une image Python optimisée pour AWS Lambda
+FROM public.ecr.aws/lambda/python:3.8
+
+# Copier le code source de la Lambda dans l'image
+COPY hybrid_recommender.py ./
+
+# Installer les dépendances
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Spécifier le point d'entrée pour AWS Lambda
+CMD ["hybrid_recommender.lambda_handler"]

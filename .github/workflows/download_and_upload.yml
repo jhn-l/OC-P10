@@ -27,68 +27,28 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: python download_and_upload_s3.py
       
-      - name: 📦 Créer un Layer pour les dépendances
+      - name: 📦 Construire l'image Docker pour Lambda
         run: |
-          mkdir -p python
-          pip install --target=python -r requirements.txt --no-cache-dir
-          zip -r9 dependencies_layer.zip python -x "*.pyc" "*.pyo" "__pycache__/*"
+          docker build -t hybrid-recommender -f DockerfileAWS .
 
-      - name: 🚀 Déployer le Layer AWS Lambda
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          LAYER_VERSION=$(aws lambda publish-layer-version \
-            --layer-name HybridRecommenderDependencies \
-            --zip-file fileb://dependencies_layer.zip \
-            --compatible-runtimes python3.8 python3.9 \
-            --query 'Version' --output text || echo "")
-          if [ -z "$LAYER_VERSION" ]; then
-            echo "❌ Erreur: Impossible de récupérer la version du Layer"
-            exit 1
-          fi
-          echo "LAYER_VERSION=$LAYER_VERSION" >> $GITHUB_ENV
-
-      - name: 📦 Packager la Lambda Hybrid Recommender (sans dépendances)
-        run: |
-          mkdir -p lambda_package
-          cp hybrid_recommender.py lambda_package/
-          cd lambda_package
-          zip -r9 ../hybrid_recommender.zip .
-
-      - name: 🚀 Déployer la Lambda Hybrid Recommender avec Layer
+      - name: 🚀 Déployer la Lambda Hybrid Recommender avec Docker
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
         run: |
-          if aws lambda get-function --function-name HybridRecommenderLambda > /dev/null 2>&1; then
-            echo "⚠️ Mise à jour de la Lambda HybridRecommender..."
-            aws lambda update-function-code \
-              --function-name HybridRecommenderLambda \
-              --zip-file fileb://hybrid_recommender.zip
-          else
-            echo "🚀 Création de la Lambda HybridRecommender..."
-            if [ ! -z "$LAYER_VERSION" ]; then
-              aws lambda create-function \
-                --function-name HybridRecommenderLambda \
-                --runtime python3.8 \
-                --role $AWS_LAMBDA_ROLE_ARN \
-                --handler hybrid_recommender.lambda_handler \
-                --zip-file fileb://hybrid_recommender.zip \
-                --layers arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:layer:HybridRecommenderDependencies:$LAYER_VERSION
-            else
-              echo "⚠️ Layer non défini, création sans layer..."
-              aws lambda create-function \
-                --function-name HybridRecommenderLambda \
-                --runtime python3.8 \
-                --role $AWS_LAMBDA_ROLE_ARN \
-                --handler hybrid_recommender.lambda_handler \
-                --zip-file fileb://hybrid_recommender.zip
-            fi
-          fi
+          docker tag hybrid-recommender:latest public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}/hybrid-recommender:latest
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}
+          docker push public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}/hybrid-recommender:latest
+          aws lambda create-function \
+            --function-name HybridRecommenderLambda \
+            --package-type Image \
+            --code ImageUri=public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}/hybrid-recommender:latest \
+            --role $AWS_LAMBDA_ROLE_ARN || \
+          aws lambda update-function-code \
+            --function-name HybridRecommenderLambda \
+            --image-uri public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}/hybrid-recommender:latest
 
       - name: Déployer API Gateway
         env:
