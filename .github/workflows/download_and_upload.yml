@@ -30,8 +30,8 @@ jobs:
       - name: 📦 Créer un Layer pour les dépendances
         run: |
           mkdir -p python
-          pip install --target=python -r requirements.txt
-          zip -r9 dependencies_layer.zip python
+          pip install --target=python -r requirements.txt --no-cache-dir
+          zip -r9 dependencies_layer.zip python -x "*.pyc" "*.pyo" "__pycache__/*"
 
       - name: 🚀 Déployer le Layer AWS Lambda
         env:
