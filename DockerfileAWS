@@ -18,6 +18,20 @@ ENV MODEL_PATH=/tmp/recommender_model_hybrid.pkl
 # ✅ Copier le script d'entraînement et l’exécuter
 COPY train.py .
 
+# Passer les credentials AWS en build args
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
+ARG AWS_REGION
+
+# Définir les variables d'environnement pour `boto3`
+ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+ENV AWS_REGION=${AWS_REGION}
+
+# Exécuter echo pour afficher les valeurs des variables (durant le build)
+RUN echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" && \
+    echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" && \
+    echo "AWS_REGION=$AWS_REGION"
 RUN python3 train.py
 
 # 🔹 Étape 3 : Construction de l’image finale pour AWS Lambda
