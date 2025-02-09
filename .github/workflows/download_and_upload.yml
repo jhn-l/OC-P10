@@ -41,7 +41,18 @@ jobs:
           aws ecr describe-repositories --repository-names hybrid-recommender || \
           aws ecr create-repository --repository-name hybrid-recommender
 
-      - name: 🚀 Déployer la Lambda Hybrid Recommender avec Docker
+      - name: 🚀 Pousser l'image Docker vers ECR
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+          docker tag hybrid-recommender:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
+      
+      - name: 🚀 Supprimer et recréer la Lambda Hybrid Recommender
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -49,14 +60,10 @@ jobs:
           AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-          docker tag hybrid-recommender:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
-          
           if aws lambda get-function --function-name HybridRecommenderLambda > /dev/null 2>&1; then
             echo "⚠️ La fonction HybridRecommenderLambda existe déjà. Suppression..."
             aws lambda delete-function --function-name HybridRecommenderLambda
-            sleep 10  # Pause pour éviter tout conflit
+            sleep 20  # Pause pour éviter tout conflit
           fi
           
           echo "🚀 Création de la fonction Lambda HybridRecommender..."
@@ -65,23 +72,36 @@ jobs:
             --package-type Image \
             --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest \
             --role $AWS_LAMBDA_ROLE_ARN
-            
-      - name: 🚀 Déployer la Lambda Hybrid Recommender avec Docker
+          
+          echo "🕒 Attente que la Lambda soit active..."
+          sleep 20  # Pause pour éviter l'état Pending
+
+      - name: 🚀 Mise à jour de la fonction Lambda avec l'image Docker
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: |
-          IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/hybrid-recommender:latest"
-
-          echo "⚡ Mise à jour de la fonction Lambda avec l'image Docker..."
-          aws lambda update-function-code \
-            --function-name HybridRecommenderLambda \
-            --image-uri $IMAGE_URI
-
-          echo "✅ Déploiement terminé !"
-
+          IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest"
+          
+          echo "⚡ Vérification que la Lambda est active avant mise à jour..."
+          for i in {1..10}; do
+            STATUS=$(aws lambda get-function --function-name HybridRecommenderLambda --query 'Configuration.State' --output text)
+            if [ "$STATUS" == "Active" ]; then
+              echo "✅ Lambda est Active, mise à jour en cours..."
+              aws lambda update-function-code \
+                --function-name HybridRecommenderLambda \
+                --image-uri $IMAGE_URI
+              echo "✅ Déploiement terminé !"
+              exit 0
+            fi
+            echo "🕒 Attente que la Lambda soit Active... ($i/10)"
+            sleep 10
+          done
+          echo "❌ Échec : La Lambda est restée dans l'état 'Pending'."
+          exit 1
+      
       - name: Déployer API Gateway
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
