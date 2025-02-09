@@ -1,7 +1,6 @@
-ENV SURPRISE_DATASET_DIR=/tmp
-
 # Utilisation de l'image Python pour AWS Lambda
 FROM public.ecr.aws/lambda/python:3.8
+ENV SURPRISE_DATASET_DIR=/tmp
 
 # Installation des dépendances système nécessaires
 RUN yum install -y gcc gcc-c++ make
