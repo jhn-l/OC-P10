@@ -29,7 +29,10 @@ jobs:
       
       - name: 📦 Packager la Lambda Hybrid Recommender
         run: |
-          zip hybrid_recommender.zip hybrid_recommender.py
+          mkdir -p lambda_package
+          cp hybrid_recommender.py lambda_package/
+          cd lambda_package
+          zip -r9 ../hybrid_recommender.zip .
 
       - name: 🚀 Déployer la Lambda Hybrid Recommender
         env:
@@ -38,12 +41,20 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
         run: |
-          aws lambda create-function --function-name HybridRecommenderLambda \
-            --runtime python3.8 \
-            --role $AWS_LAMBDA_ROLE_ARN \
-            --handler hybrid_recommender.lambda_handler \
-            --zip-file fileb://hybrid_recommender.zip || echo "⚠️ Lambda HybridRecommenderLambda existe déjà."
-
+          if aws lambda get-function --function-name HybridRecommenderLambda > /dev/null 2>&1; then
+            echo "⚠️ La fonction HybridRecommenderLambda existe déjà. Mise à jour..."
+            aws lambda update-function-code \
+              --function-name HybridRecommenderLambda \
+              --zip-file fileb://hybrid_recommender.zip
+          else
+            echo "🚀 Création de la fonction Lambda HybridRecommender..."
+            aws lambda create-function \
+              --function-name HybridRecommenderLambda \
+              --runtime python3.8 \
+              --role $AWS_LAMBDA_ROLE_ARN \
+              --handler hybrid_recommender.lambda_handler \
+              --zip-file fileb://hybrid_recommender.zip
+          fi
 
       - name: Déployer API Gateway
         env:

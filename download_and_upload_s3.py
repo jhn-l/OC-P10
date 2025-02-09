@@ -42,28 +42,41 @@ import boto3
 def lambda_handler(event, context):
     dynamodb = boto3.client('dynamodb')
 
-    # Vérifier comment les données sont envoyées
-    print("EVENT:", json.dumps(event))
+    # 🔍 Debugging : Voir comment l'événement est reçu par Lambda
+    print("EVENT RECEIVED:", json.dumps(event))
 
-    # Vérifier si API Gateway envoie les données sous "body"
-    if "body" in event:
-        event_body = json.loads(event["body"])
-    else:
-        event_body = event
+    # Si API Gateway envoie un body encodé en JSON
+    try:
+        event_body = json.loads(event["body"]) if "body" in event else event
+    except json.JSONDecodeError:
+        return {"statusCode": 400, "body": json.dumps("Invalid JSON format")}
 
+    # Récupérer user_id
     user_id = event_body.get("user_id")
-    
+
     if not user_id:
         return {"statusCode": 400, "body": json.dumps("user_id is required")}
-    
+
+    # Requête DynamoDB
     response = dynamodb.get_item(
         TableName='UserRecommendations',
         Key={'user_id': {'S': user_id}}
     )
-    
+
+    # Vérifier si l'utilisateur existe dans la base
+    if "Item" not in response:
+        return {"statusCode": 404, "body": json.dumps({"error": "User not found"})}
+
+    # Transformer les données DynamoDB en JSON normal
+    item = response["Item"]
+    recommendations = [int(rec["N"]) for rec in item["recommendations"]["L"]]
+
     return {
         "statusCode": 200,
-        "body": json.dumps(response.get("Item", {}))
+        "body": json.dumps({
+            "user_id": item["user_id"]["S"],
+            "recommendations": recommendations
+        })
     }
 '''
     
