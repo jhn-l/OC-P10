@@ -25,9 +25,25 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-
-
         run: python download_and_upload_s3.py
+      
+            - name: 📦 Packager la Lambda Hybrid Recommender
+        run: |
+          zip hybrid_recommender.zip hybrid_recommender.py
+
+      - name: 🚀 Déployer la Lambda Hybrid Recommender
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
+        run: |
+          aws lambda create-function --function-name HybridRecommenderLambda \
+            --runtime python3.8 \
+            --role $AWS_LAMBDA_ROLE_ARN \
+            --handler hybrid_recommender.lambda_handler \
+            --zip-file fileb://hybrid_recommender.zip || echo "⚠️ Lambda HybridRecommenderLambda existe déjà."
+
 
       - name: Déployer API Gateway
         env:
