@@ -4,6 +4,7 @@ import boto3
 import pandas as pd
 import numpy as np
 import pickle
+os.environ["SURPRISE_DATASET_DIR"] = "/tmp"
 from surprise import Dataset, Reader, SVD
 from surprise.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
