@@ -1,16 +1,22 @@
 import os
+os.environ["SURPRISE_DATASET_DIR"] = "/tmp"  # 🔹 Définit le répertoire surprise avant l'import
+
 import json
 import boto3
 import pandas as pd
 import numpy as np
 import pickle
-os.environ["SURPRISE_DATASET_DIR"] = "/tmp"
+
+import surprise
+surprise.dataset.get_dataset_dir = lambda: "/tmp"  # 🔹 Définit le répertoire surprise avant toute utilisation
+
 from surprise import Dataset, Reader, SVD
 from surprise.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
-import surprise
-surprise.dataset.get_dataset_dir = lambda: "/tmp"
+Dataset.load_builtin = lambda name: None  # Désactive le téléchargement automatique
+
+
 
 # 📌 Paramètres AWS S3 et DynamoDB
 S3_BUCKET_NAME = "my-recommender-dataset"
