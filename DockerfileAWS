@@ -5,34 +5,39 @@ FROM public.ecr.aws/lambda/python:3.8 as base
 FROM base AS train
 WORKDIR /var/task
 
+# ✅ Installer les outils de compilation pour `scikit-surprise`
 RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
-# Installer les dépendances pour l'entraînement
+# ✅ Copier et installer les dépendances, y compris `boto3`
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt boto3  
 
-# Définir le chemin du modèle pour être cohérent avec `train.py`
+# ✅ Définir le chemin du modèle
 ENV MODEL_PATH=/tmp/recommender_model_hybrid.pkl
 
-# Copier le script d'entraînement et l’exécuter
+# ✅ Copier le script d'entraînement et l’exécuter
 COPY train.py .
+
 RUN python3 train.py
 
 # 🔹 Étape 3 : Construction de l’image finale pour AWS Lambda
 FROM base
 WORKDIR /var/task
 
-# ✅ **Installer à nouveau `gcc` avant `pip install`**
+# ✅ Réinstaller les outils de compilation si nécessaire (utile pour `surprise`)
 RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
-# Installer `scikit-learn`, `surprise` et `boto3` pour l’inférence
+# ✅ Installer `scikit-learn`, `surprise` et `boto3` pour l’inférence
 RUN pip install --no-cache-dir scikit-learn surprise boto3
 
-# Copier le modèle entraîné depuis l’étape `train`
+# ✅ Copier le modèle entraîné depuis l’étape `train`
 COPY --from=train /tmp/recommender_model_hybrid.pkl /var/task/recommender_model_hybrid.pkl
 
-# Copier le fichier de recommandation (Lambda handler)
+# ✅ Copier le fichier de recommandation (Lambda handler)
 COPY hybrid_recommender.py .
+
+# ✅ Assurer l'arrêt immédiat en cas d'erreur (bonne pratique)
+RUN set -e
 
 # 🔹 Définition du point d’entrée de la Lambda
 CMD ["hybrid_recommender.lambda_handler"]
