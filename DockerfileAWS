@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y gcc g++ make libstdc++-12-dev
 ENV SURPRISE_DATASET_DIR=/tmp
 
 # 🔹 Installer les dépendances Python dans `/var/task`
-RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3 \
+RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3 awslambdaric \
     --target /var/task
 
 # 🔹 Copier le fichier source
