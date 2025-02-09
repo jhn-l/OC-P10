@@ -1,20 +1,21 @@
-# Utilisation de l'image AWS Lambda
+# Utilisation de l'image AWS Lambda Python 3.12
 FROM public.ecr.aws/lambda/python:3.12
 
 # Définition du répertoire de travail
 WORKDIR /var/task
 
-# 🔹 Mise à jour des paquets et installation des outils de compilation
-RUN apt-get update && apt-get install -y gcc g++ make libstdc++-dev
+# 🔹 Installer les outils de compilation (nécessaires pour `scikit-surprise`)
+RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
-# 🔹 Définition des variables d'environnement pour forcer Surprise à utiliser /tmp
+# 🔹 Définition des variables d'environnement pour éviter les erreurs de Surprise
 ENV SURPRISE_DATASET_DIR=/tmp
 
-# Installation des dépendances (avec --target pour éviter les problèmes de chemin)
-RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3 --target /var/task
+# 🔹 Installation des dépendances Python dans le bon chemin
+RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3 \
+    --target /var/lang/lib/python3.12/site-packages
 
-# Copier le code source
+# 🔹 Copier le fichier source dans le conteneur
 COPY hybrid_recommender.py .
 
-# Définition du point d'entrée
+# 🔹 Définition du point d'entrée de la Lambda
 CMD ["hybrid_recommender.lambda_handler"]
