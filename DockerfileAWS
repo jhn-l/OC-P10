@@ -1,18 +1,17 @@
-# Utilisation de l'image Python pour AWS Lambda
+# Utilisation de l'image de base AWS Lambda Python
 FROM public.ecr.aws/lambda/python:3.8
+
+# Définir un répertoire de travail dans /tmp (évite les erreurs de permission)
+WORKDIR /tmp
+
+# Définir une variable d'environnement pour que Surprise utilise /tmp
 ENV SURPRISE_DATASET_DIR=/tmp
 
-# Installation des dépendances système nécessaires
-RUN yum install -y gcc gcc-c++ make
-
-# Copier les fichiers nécessaires
-#COPY requirements.txt ./
-
-# Installation des dépendances Python
+# Installation des dépendances
 RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3
 
-# Copier le fichier du moteur de recommandation
-COPY hybrid_recommender.py ./
+# Copier le code source dans l'image Docker
+COPY hybrid_recommender.py .
 
-# Spécifier le point d'entrée pour AWS Lambda
+# Définition du point d'entrée de la fonction Lambda
 CMD ["hybrid_recommender.lambda_handler"]
