@@ -30,7 +30,7 @@ jobs:
       - name: 📦 Créer un Layer pour les dépendances
         run: |
           mkdir -p python
-          pip install --target=python pandas numpy scikit-learn surprise boto3
+          pip install --target=python -r requirements.txt
           zip -r9 dependencies_layer.zip python
 
       - name: 🚀 Déployer le Layer AWS Lambda
@@ -100,4 +100,3 @@ jobs:
             --name "RecommenderAPI" \
             --protocol-type HTTP \
             --target arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:function:GetUserRecommendations
- 
