@@ -13,6 +13,9 @@ import pickle
 import surprise
 surprise.dataset.get_dataset_dir = lambda: "/tmp/surprise_data"  # 🔹 Définit le répertoire surprise avant toute utilisation
 
+# 🔹 Modifier `builtin_datasets.py` pour éviter les erreurs d'accès
+surprise.builtin_datasets.get_dataset_dir = lambda: "/tmp/surprise_data"
+
 from surprise import Dataset, Reader, SVD
 Dataset.load_builtin = lambda name: None  # Désactive le téléchargement automatique de datasets
 
