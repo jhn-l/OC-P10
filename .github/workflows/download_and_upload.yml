@@ -27,7 +27,7 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: python download_and_upload_s3.py
       
-            - name: 📦 Packager la Lambda Hybrid Recommender
+      - name: 📦 Packager la Lambda Hybrid Recommender
         run: |
           zip hybrid_recommender.zip hybrid_recommender.py
 
