@@ -1,6 +1,9 @@
 import os
 os.environ["SURPRISE_DATASET_DIR"] = "/tmp"  # 🔹 Définit le répertoire surprise avant l'import
 
+if not os.path.exists("/tmp/surprise_data"):
+    os.makedirs("/tmp/surprise_data")
+
 import json
 import boto3
 import pandas as pd
@@ -8,13 +11,15 @@ import numpy as np
 import pickle
 
 import surprise
-surprise.dataset.get_dataset_dir = lambda: "/tmp"  # 🔹 Définit le répertoire surprise avant toute utilisation
+surprise.dataset.get_dataset_dir = lambda: "/tmp/surprise_data"  # 🔹 Définit le répertoire surprise avant toute utilisation
 
 from surprise import Dataset, Reader, SVD
+Dataset.load_builtin = lambda name: None  # Désactive le téléchargement automatique de datasets
+
 from surprise.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
-Dataset.load_builtin = lambda name: None  # Désactive le téléchargement automatique
+
 
 
 

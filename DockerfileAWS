@@ -1,20 +1,20 @@
-# Utilisation de l'image de base AWS Lambda Python
-FROM public.ecr.aws/lambda/python:3.8
+# Utilisation de l'image AWS Lambda
+FROM public.ecr.aws/lambda/python:3.12
 
-# Définir un répertoire de travail dans /tmp (évite les erreurs de permission)
+# Définition du répertoire de travail
 WORKDIR /var/task
 
-# Installer les outils de compilation (gcc, g++, libc-dev)
+# Installation des outils de compilation
 RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
-# Définir une variable d'environnement pour que Surprise utilise /tmp
+# 🔹 Définition des variables d'environnement pour forcer Surprise à utiliser /tmp
 ENV SURPRISE_DATASET_DIR=/tmp
 
-# Installation des dépendances (y compris scikit-surprise)
-RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3
+# Installation des dépendances (avec --target pour éviter les problèmes de chemin)
+RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3 --target /var/task
 
-# Copier le code source dans l'image Docker
+# Copier le code source
 COPY hybrid_recommender.py .
 
-# Définition du point d'entrée de la fonction Lambda
+# Définition du point d'entrée
 CMD ["hybrid_recommender.lambda_handler"]
