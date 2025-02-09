@@ -31,24 +31,35 @@ jobs:
         run: |
           docker build -t hybrid-recommender -f DockerfileAWS .
 
+      - name: 📌 Vérifier et créer le repository ECR si nécessaire
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          aws ecr describe-repositories --repository-names hybrid-recommender || \
+          aws ecr create-repository --repository-name hybrid-recommender
+
       - name: 🚀 Déployer la Lambda Hybrid Recommender avec Docker
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: |
-          docker tag hybrid-recommender:latest public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}/hybrid-recommender:latest
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}
-          docker push public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}/hybrid-recommender:latest
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+          docker tag hybrid-recommender:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
           aws lambda create-function \
             --function-name HybridRecommenderLambda \
             --package-type Image \
-            --code ImageUri=public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}/hybrid-recommender:latest \
+            --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest \
             --role $AWS_LAMBDA_ROLE_ARN || \
           aws lambda update-function-code \
             --function-name HybridRecommenderLambda \
-            --image-uri public.ecr.aws/${{ secrets.AWS_ACCOUNT_ID }}/hybrid-recommender:latest
+            --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
 
       - name: Déployer API Gateway
         env:
