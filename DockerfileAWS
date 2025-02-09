@@ -5,6 +5,9 @@ FROM public.ecr.aws/lambda/python:3.8 as base
 FROM base AS train
 WORKDIR /var/task
 
+RUN apt-get update
+RUN apt-get install -y gcc gcc-c++ make libstdc++-devel
+
 # Installer les dépendances pour l'entraînement
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
