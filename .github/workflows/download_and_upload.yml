@@ -3,7 +3,7 @@ name: Setup AWS Infrastructure & Upload Data
 on:
   push:
     branches:
-      - master
+      - main
   workflow_dispatch:
 
 jobs:
@@ -65,6 +65,22 @@ jobs:
             --package-type Image \
             --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest \
             --role $AWS_LAMBDA_ROLE_ARN
+            
+      - name: 🚀 Déployer la Lambda Hybrid Recommender avec Docker
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/hybrid-recommender:latest"
+
+          echo "⚡ Mise à jour de la fonction Lambda avec l'image Docker..."
+          aws lambda update-function-code \
+            --function-name HybridRecommenderLambda \
+            --image-uri $IMAGE_URI
+
+          echo "✅ Déploiement terminé !"
 
       - name: Déployer API Gateway
         env:
