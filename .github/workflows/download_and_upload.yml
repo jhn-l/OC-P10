@@ -54,18 +54,17 @@ jobs:
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
           
           if aws lambda get-function --function-name HybridRecommenderLambda > /dev/null 2>&1; then
-            echo "⚠️ La fonction HybridRecommenderLambda existe déjà. Mise à jour..."
-            aws lambda update-function-code \
-              --function-name HybridRecommenderLambda \
-              --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
-          else
-            echo "🚀 Création de la fonction Lambda HybridRecommender..."
-            aws lambda create-function \
-              --function-name HybridRecommenderLambda \
-              --package-type Image \
-              --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest \
-              --role $AWS_LAMBDA_ROLE_ARN
+            echo "⚠️ La fonction HybridRecommenderLambda existe déjà. Suppression..."
+            aws lambda delete-function --function-name HybridRecommenderLambda
+            sleep 10  # Pause pour éviter tout conflit
           fi
+          
+          echo "🚀 Création de la fonction Lambda HybridRecommender..."
+          aws lambda create-function \
+            --function-name HybridRecommenderLambda \
+            --package-type Image \
+            --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest \
+            --role $AWS_LAMBDA_ROLE_ARN
 
       - name: Déployer API Gateway
         env:
