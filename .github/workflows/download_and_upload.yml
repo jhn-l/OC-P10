@@ -52,14 +52,20 @@ jobs:
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
           docker tag hybrid-recommender:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
-          aws lambda create-function \
-            --function-name HybridRecommenderLambda \
-            --package-type Image \
-            --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest \
-            --role $AWS_LAMBDA_ROLE_ARN || \
-          aws lambda update-function-code \
-            --function-name HybridRecommenderLambda \
-            --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
+          
+          if aws lambda get-function --function-name HybridRecommenderLambda > /dev/null 2>&1; then
+            echo "⚠️ La fonction HybridRecommenderLambda existe déjà. Mise à jour..."
+            aws lambda update-function-code \
+              --function-name HybridRecommenderLambda \
+              --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest
+          else
+            echo "🚀 Création de la fonction Lambda HybridRecommender..."
+            aws lambda create-function \
+              --function-name HybridRecommenderLambda \
+              --package-type Image \
+              --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest \
+              --role $AWS_LAMBDA_ROLE_ARN
+          fi
 
       - name: Déployer API Gateway
         env:
