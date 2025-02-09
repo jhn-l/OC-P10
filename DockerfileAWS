@@ -4,10 +4,13 @@ FROM public.ecr.aws/lambda/python:3.8
 # Définir un répertoire de travail dans /tmp (évite les erreurs de permission)
 WORKDIR /tmp
 
+# Installer les outils de compilation (gcc, g++, libc-dev)
+RUN yum install -y gcc gcc-c++ make libstdc++-devel
+
 # Définir une variable d'environnement pour que Surprise utilise /tmp
 ENV SURPRISE_DATASET_DIR=/tmp
 
-# Installation des dépendances
+# Installation des dépendances (y compris scikit-surprise)
 RUN pip install --no-cache-dir pandas numpy scikit-learn scikit-surprise boto3
 
 # Copier le code source dans l'image Docker
