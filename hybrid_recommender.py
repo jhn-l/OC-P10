@@ -75,7 +75,7 @@ def build_user_item_matrix(interactions_df):
     )
     print(f"✅ Matrice utilisateur-article créée : {user_item_sparse.shape[0]} utilisateurs, {user_item_sparse.shape[1]} articles.")
 
-    return user_item_sparse, user_ids, item_ids
+    return user_item_sparse.tocsr(), user_ids, item_ids
 
 # 📌 Recommander des articles avec ALS
 def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
@@ -91,6 +91,7 @@ def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids,
 
 
     user_index = np.where(user_ids.to_numpy() == user_id)[0][0]
+    print(f"🔍 Type de user_item_matrix : {type(user_item_matrix)}") 
     user_items = user_item_matrix[user_index]
     recommendations = model.recommend(user_index, user_items, N=top_n)
     recommended_articles = [item_ids.cat.categories[i] for i in recommendations[0]]
