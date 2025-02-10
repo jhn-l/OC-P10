@@ -9,7 +9,7 @@ import scipy.sparse as sparse
 
 # 📌 Chemins et paramètres
 MODEL_PATH = "/var/task/recommender_model_hybrid.pkl"  # 📥 Modèle ALS stocké dans Docker Lambda
-S3_BUCKET = os.getenv("AWS_S3_BUCKET", "my-recommender-bucket")  # 📂 Nom du bucket S3
+S3_BUCKET = os.getenv("AWS_S3_BUCKET", "my-recommender-dataset")  # 📂 Nom du bucket S3
 S3_DATA_PREFIX = "clicks/"  # 📂 Chemin des fichiers sur S3
 LOCAL_DATA_PATH = "/tmp/clicks/"  # 📂 Dossier temporaire Lambda
 

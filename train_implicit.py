@@ -7,7 +7,7 @@ import scipy.sparse as sparse
 import implicit
 
 # 📌 Paramètres
-S3_BUCKET = os.getenv("AWS_S3_BUCKET", "my-recommender-bucket")  # Nom du bucket S3
+S3_BUCKET = os.getenv("AWS_S3_BUCKET", "my-recommender-dataset")  # Nom du bucket S3
 S3_DATA_PREFIX = "clicks/"  # Dossier des fichiers dans S3
 LOCAL_DATA_PATH = "/tmp/clicks/"  # Dossier temporaire dans Lambda
 MODEL_PATH = "/var/task/recommender_model_hybrid.pkl"  # Sauvegarde locale du modèle
