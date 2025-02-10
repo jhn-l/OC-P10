@@ -132,6 +132,10 @@ def lambda_handler(event, context):
 
     return {
         "statusCode": 200,
-        "body": json.dumps({"user_id": user_id, "recommendations": recommendations})
+        "body": json.dumps({
+            "user_id": int(user_id),  # ✅ Conversion en `int` natif Python
+            "recommendations": [int(article_id) for article_id in recommendations]  # ✅ Conversion des articles en `int`
+        })
     }
+
 
