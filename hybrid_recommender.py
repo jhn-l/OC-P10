@@ -79,8 +79,16 @@ def build_user_item_matrix(interactions_df):
 
 # 📌 Recommander des articles avec ALS
 def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
-    if user_id not in user_ids.to_numpy():
-        return {"error": f"Utilisateur {user_id} inconnu"}
+    # ✅ Convertir user_id en entier pour éviter les problèmes de type
+    try:
+        user_id = int(user_id)
+    except ValueError:
+        return {"statusCode": 400, "body": json.dumps({"error": "Invalid user_id format"})}
+
+    # ✅ Vérification correcte de l'existence de l'utilisateur
+    if user_id not in user_ids.to_numpy(dtype=int):
+        return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
+
 
     user_index = np.where(user_ids.to_numpy() == user_id)[0][0]
     user_items = user_item_matrix[user_index]
@@ -102,9 +110,23 @@ def lambda_handler(event, context):
     if not user_id:
         return {"statusCode": 400, "body": json.dumps({"error": "user_id is required"})}
 
+    # ✅ Convertir user_id en entier pour éviter les problèmes de type
+    try:
+        user_id = int(user_id)
+    except ValueError:
+        return {"statusCode": 400, "body": json.dumps({"error": "Invalid user_id format"})}
+
+    # ✅ Optimisation : Convertir user_ids une seule fois en set (accélère la recherche)
+    user_ids_set = set(user_ids.to_numpy(dtype=int))
+
+    if user_id not in user_ids_set:
+        return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
+
+    # ✅ Générer les recommandations ALS pour l'utilisateur
     recommendations = recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids)
 
     return {
         "statusCode": 200,
         "body": json.dumps({"user_id": user_id, "recommendations": recommendations})
     }
+
