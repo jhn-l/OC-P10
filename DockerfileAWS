@@ -10,7 +10,7 @@ RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
 # ✅ Copier et installer les dépendances, y compris `boto3`
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt boto3  
+RUN pip install --no-cache-dir -r requirements.txt boto3  implicit
 
 # ✅ Définir le chemin du modèle
 ENV MODEL_PATH=/tmp/recommender_model_hybrid.pkl
@@ -42,7 +42,7 @@ WORKDIR /var/task
 RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
 # ✅ Installer `scikit-learn`, `surprise` et `boto3` pour l’inférence
-RUN pip install --no-cache-dir scikit-learn boto3 pandas numpy
+RUN pip install --no-cache-dir scikit-learn boto3 pandas numpy implicit
 
 # ✅ Copier le modèle entraîné depuis l’étape `train`
 COPY --from=train /tmp/recommender_model_hybrid.pkl /var/task/recommender_model_hybrid.pkl
