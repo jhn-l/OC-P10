@@ -10,12 +10,16 @@ RUN apt-get update && apt-get install -y \
     gcc g++ make libstdc++-12-dev libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Forcer NumPy à rester en version 1.x pour éviter les erreurs de compatibilité
+# ✅ Installer NumPy en version compatible (1.x)
 RUN pip install --no-cache-dir "numpy<2"
 
-# ✅ Installer les dépendances
+# ✅ Installer les autres dépendances SANS Surprise
 RUN pip install --no-cache-dir --target ${FUNCTION_DIR} \
-    scikit-learn surprise boto3 pandas
+    scikit-learn boto3 pandas
+
+# ✅ Installer `Surprise` SEULEMENT après NumPy pour éviter les erreurs de compilation
+RUN pip install --no-cache-dir --target ${FUNCTION_DIR} \
+    --no-binary :all: --force-reinstall scikit-surprise
 
 # 🔹 Étape 2 : Entraînement du modèle
 FROM build AS train
