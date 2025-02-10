@@ -1,120 +1,98 @@
 import os
 import json
-import boto3
-import pandas as pd
-import numpy as np
 import pickle
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.preprocessing import MinMaxScaler
-import implicit
+import boto3
+import numpy as np
+import pandas as pd
+from implicit.als import AlternatingLeastSquares
+import scipy.sparse as sparse
 
-# 📌 Définir le dossier temporaire pour les modèles et embeddings
-os.environ["SURPRISE_DATASET_DIR"] = "/tmp"
-os.environ["JOBLIB_MULTIPROCESSING"] = "0"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
+# 📌 Chemins et paramètres
+MODEL_PATH = "/var/task/recommender_model_hybrid.pkl"  # 📥 Modèle ALS stocké dans Docker Lambda
+S3_BUCKET = os.getenv("AWS_S3_BUCKET", "my-recommender-bucket")  # 📂 Nom du bucket S3
+S3_DATA_PREFIX = "clicks/"  # 📂 Chemin des fichiers sur S3
+LOCAL_DATA_PATH = "/tmp/clicks/"  # 📂 Dossier temporaire Lambda
 
-# 📌 Configuration AWS S3 et DynamoDB
-S3_BUCKET_NAME = "my-recommender-dataset"
-DYNAMODB_TABLE_NAME = "UserRecommendations"
-S3_MODEL_KEY = "recommender_model_hybrid.pkl"
-MODEL_LOCAL_PATH = "/tmp/recommender_model_hybrid.pkl"
+# ✅ Charger le modèle ALS
+print("🔹 Chargement du modèle ALS...")
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"❌ Modèle non trouvé: {MODEL_PATH}")
 
-s3 = boto3.client("s3")
-dynamodb = boto3.client("dynamodb")
+with open(MODEL_PATH, "rb") as f:
+    model = pickle.load(f)
+print("✅ Modèle ALS chargé avec succès !")
 
-# 📌 Charger un fichier depuis S3 en DataFrame
-def load_csv_from_s3(file_key):
-    print(f"🔹 Téléchargement de {file_key} depuis S3...")
-    obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=file_key)
-    df = pd.read_csv(obj["Body"])
-    print(f"✅ Fichier {file_key} chargé avec succès.")
-    return df
+# ✅ Client S3 pour télécharger les fichiers
+s3_client = boto3.client("s3")
+
+# 📌 Télécharger les fichiers d'interactions depuis S3
+def download_data_from_s3():
+    print(f"📥 Téléchargement des fichiers depuis S3: s3://{S3_BUCKET}/{S3_DATA_PREFIX} ...")
+    os.makedirs(LOCAL_DATA_PATH, exist_ok=True)
+
+    response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=S3_DATA_PREFIX)
+    if "Contents" not in response:
+        print("❌ Aucun fichier trouvé sur S3.")
+        return []
+
+    files_downloaded = []
+    for obj in response["Contents"]:
+        file_key = obj["Key"]
+        local_file_path = os.path.join(LOCAL_DATA_PATH, os.path.basename(file_key))
+        
+        if file_key.endswith(".csv"):
+            print(f"📥 Téléchargement: {file_key} -> {local_file_path}")
+            s3_client.download_file(S3_BUCKET, file_key, local_file_path)
+            files_downloaded.append(local_file_path)
+
+    print(f"✅ {len(files_downloaded)} fichiers téléchargés depuis S3.")
+    return files_downloaded
 
 # 📌 Charger les interactions utilisateur-article
 def load_interactions():
+    files = download_data_from_s3()
+    if not files:
+        raise Exception("❌ Impossible de charger les données : aucun fichier trouvé.")
+
     print("🔹 Chargement des interactions utilisateur-article...")
-    all_files = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix="clicks/").get('Contents', [])
-    df_list = [load_csv_from_s3(file["Key"]) for file in all_files if file["Key"].endswith(".csv")]
+    df_list = [pd.read_csv(f) for f in files]
     interactions_df = pd.concat(df_list, ignore_index=True)
     interactions_df.rename(columns={"click_article_id": "article_id"}, inplace=True)
     interactions_df["article_id"] = interactions_df["article_id"].astype(int)
-    print(f"✅ Interactions chargées ({interactions_df.shape[0]} lignes)")
+    interactions_df["user_id"] = interactions_df["user_id"].astype(int)
+    print(f"✅ Interactions chargées - Nombre de lignes: {interactions_df.shape[0]}")
     return interactions_df
 
-# 📌 Charger les embeddings des articles
-def load_articles_embeddings():
-    print("🔹 Chargement des embeddings des articles...")
-    obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key="articles_embeddings.pickle")
-    embeddings = pickle.loads(obj["Body"].read())
-    print(f"✅ Embeddings chargés ({len(embeddings)} articles)")
-    return embeddings
+# 📌 Construire la matrice utilisateur-article sous format sparse
+def build_user_item_matrix(interactions_df):
+    print("🔹 Construction de la matrice utilisateur-article en format sparse...")
+    user_ids = interactions_df["user_id"].astype("category")
+    item_ids = interactions_df["article_id"].astype("category")
 
-# 📌 Télécharger et charger le modèle depuis S3
-def load_model_from_s3():
-    print("🔹 Téléchargement du modèle depuis S3...")
-    if not os.path.exists(MODEL_LOCAL_PATH):
-        obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=S3_MODEL_KEY)
-        model_data = obj["Body"].read()
-        with open(MODEL_LOCAL_PATH, "wb") as f:
-            f.write(model_data)
-        print("✅ Modèle téléchargé et sauvegardé localement.")
+    user_item_sparse = sparse.coo_matrix(
+        (np.ones(len(interactions_df)), 
+         (user_ids.cat.codes, item_ids.cat.codes))
+    )
+    print(f"✅ Matrice utilisateur-article créée : {user_item_sparse.shape[0]} utilisateurs, {user_item_sparse.shape[1]} articles.")
 
-    print("🔹 Chargement du modèle en mémoire...")
-    with open(MODEL_LOCAL_PATH, "rb") as f:
-        model, user_mapping, item_mapping = pickle.load(f)
-    print("✅ Modèle chargé avec succès.")
-    return model, user_mapping, item_mapping
+    return user_item_sparse, user_ids, item_ids
 
-# 📌 Générer des recommandations hybrides
-def hybrid_recommendation(user_id, interactions_df, embeddings, model_data, top_n=5, alpha=0.5):
-    print(f"🔹 Génération des recommandations pour l'utilisateur {user_id}...")
-    model, user_mapping, item_mapping = model_data
+# 📌 Recommander des articles avec ALS
+def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
+    if user_id not in user_ids.to_numpy():
+        return {"error": f"Utilisateur {user_id} inconnu"}
 
-    if user_id not in user_mapping:
-        print("⚠️ Utilisateur inconnu, recommandations uniquement basées sur le contenu.")
-        alpha = 1
-        known_articles = []
-    else:
-        user_idx = user_mapping[user_id]
-        recommended_items = model.recommend(user_idx, None, N=top_n)
-        known_articles = [item_mapping[i] for i, _ in recommended_items]
-    
-    all_articles = list(range(len(embeddings)))
-    unknown_articles = np.setdiff1d(all_articles, known_articles)
-
-    # 🔹 Filtrage basé sur le contenu
-    content_scores = {}
-    if known_articles:
-        last_article_id = known_articles[-1]
-        if last_article_id in embeddings:
-            last_article_vector = embeddings[last_article_id].reshape(1, -1)
-            article_vectors = np.array([embeddings[a] for a in all_articles])
-            similarities = cosine_similarity(last_article_vector, article_vectors)[0]
-            content_scores = {all_articles[i]: similarities[i] for i in range(len(all_articles))}
-    
-    content_values = np.array(list(content_scores.values())).reshape(-1, 1)
-    content_values = MinMaxScaler().fit_transform(content_values).flatten()
-    content_scores = {article: score for article, score in zip(content_scores.keys(), content_values)}
-    
-    # 🔹 Fusion des recommandations CF et CBF
-    num_cf = int(alpha * top_n)
-    num_cb = top_n - num_cf
-    
-    top_cf = known_articles[:num_cf]
-    top_cb = sorted(content_scores, key=content_scores.get, reverse=True)[:num_cb]
-    recommended_articles = list(dict.fromkeys(top_cf + top_cb))[:top_n]
+    user_index = np.where(user_ids.to_numpy() == user_id)[0][0]
+    user_items = user_item_matrix[user_index]
+    recommendations = model.recommend(user_index, user_items, N=top_n)
+    recommended_articles = [item_ids.cat.categories[i] for i in recommendations[0]]
 
     return recommended_articles
 
-# 🚀 Charger les données UNE SEULE FOIS au démarrage de la Lambda
-try:
-    interactions_df = load_interactions()
-    embeddings = load_articles_embeddings()
-    model_data = load_model_from_s3()
-except Exception as e:
-    print(f"❌ Erreur lors du chargement initial : {str(e)}")
+# ✅ Charger les données utilisateur-article au démarrage
+print("🔹 Chargement des données utilisateur/article...")
+interactions_df = load_interactions()
+user_item_matrix, user_ids, item_ids = build_user_item_matrix(interactions_df)
 
 # 📌 Fonction Lambda
 def lambda_handler(event, context):
@@ -124,7 +102,7 @@ def lambda_handler(event, context):
     if not user_id:
         return {"statusCode": 400, "body": json.dumps({"error": "user_id is required"})}
 
-    recommendations = hybrid_recommendation(user_id, interactions_df, embeddings, model_data)
+    recommendations = recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids)
 
     return {
         "statusCode": 200,
