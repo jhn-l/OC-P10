@@ -1,0 +1,63 @@
+# 🔹 Étape 1 : Image de base pour l’installation des dépendances
+FROM python:3.12 AS build
+
+# Définir un répertoire de travail
+ARG FUNCTION_DIR="/function"
+RUN mkdir -p ${FUNCTION_DIR}
+WORKDIR ${FUNCTION_DIR}
+
+# ✅ Installer les outils de compilation nécessaires
+RUN apt-get update && apt-get install -y \
+    gcc g++ make libstdc++-dev libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ✅ Copier et installer les dépendances (y compris Surprise, scikit-learn et boto3)
+COPY requirements.txt .
+RUN pip install --no-cache-dir --target ${FUNCTION_DIR} -r requirements.txt boto3 scikit-learn surprise numpy pandas
+
+# 🔹 Étape 2 : Entraînement du modèle
+FROM build AS train
+WORKDIR /function
+
+# ✅ Définir le chemin du modèle
+ENV MODEL_PATH=/tmp/recommender_model_hybrid.pkl
+ENV SURPRISE_DATASET_DIR="/tmp"
+
+# ✅ Copier le script d'entraînement
+COPY train.py .
+
+# ✅ Passer les credentials AWS via des arguments de build
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
+ARG AWS_REGION
+
+# ✅ Définir les variables d'environnement pour `boto3`
+ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+ENV AWS_REGION=${AWS_REGION}
+
+# ✅ Vérifier les valeurs des variables d’environnement (debug)
+RUN echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" && \
+    echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" && \
+    echo "AWS_REGION=$AWS_REGION"
+
+# ✅ Exécuter l'entraînement du modèle
+RUN python3 train.py
+
+# 🔹 Étape 3 : Image finale pour AWS Lambda
+FROM python:3.12-slim AS final
+ARG FUNCTION_DIR="/function"
+WORKDIR ${FUNCTION_DIR}
+
+# ✅ Copier uniquement les dépendances préinstallées
+COPY --from=build ${FUNCTION_DIR} ${FUNCTION_DIR}
+
+# ✅ Copier le modèle entraîné depuis l’étape `train`
+COPY --from=train /tmp/recommender_model_hybrid.pkl ${FUNCTION_DIR}/recommender_model_hybrid.pkl
+
+# ✅ Copier le fichier de recommandation (Lambda handler)
+COPY hybrid_recommender.py .
+
+# ✅ Définir le Runtime Interface Client pour AWS Lambda
+ENTRYPOINT [ "/usr/local/bin/python", "-m", "awslambdaric" ]
+CMD ["hybrid_recommender.lambda_handler"]
