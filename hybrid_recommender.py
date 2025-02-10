@@ -4,13 +4,11 @@ import boto3
 import pandas as pd
 import numpy as np
 import pickle
-
-# 📌 Définir le dossier temporaire pour `surprise`
-os.environ["SURPRISE_DATASET_DIR"] = "/tmp"
-
-#from surprise import SVD, Dataset, Reader
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
+
+# 📌 Définir le dossier temporaire pour les modèles et embeddings
+os.environ["SURPRISE_DATASET_DIR"] = "/tmp"
 
 os.environ["JOBLIB_MULTIPROCESSING"] = "0"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
@@ -25,10 +23,6 @@ MODEL_LOCAL_PATH = "/tmp/recommender_model_hybrid.pkl"  # Utilisation de /tmp po
 
 s3 = boto3.client("s3")
 dynamodb = boto3.client("dynamodb")
-
-
-# 📌 Empêcher `surprise` de télécharger des datasets intégrés
-#Dataset.load_builtin = lambda name: None
 
 # 📌 Charger un fichier depuis S3 en DataFrame
 def load_csv_from_s3(file_key):
@@ -86,8 +80,13 @@ def hybrid_recommendation(user_id, interactions_df, embeddings, model, top_n=5, 
         print("⚠️ Aucun historique trouvé, utilisation uniquement du filtrage basé sur le contenu.")
         alpha = 1  
 
-    # 🔹 Filtrage collaboratif
-    cf_scores = {article: model.predict(user_id, article).est for article in unknown_articles}
+    # 🔹 Filtrage collaboratif avec TruncatedSVD
+    cf_scores = {}
+    if len(unknown_articles) > 0:
+        transformed_data = model.transform(interactions_df.pivot_table(index="user_id", columns="article_id", values="session_size", fill_value=0).values)
+        for article in unknown_articles:
+            cf_scores[article] = transformed_data[user_id][article]
+
     if cf_scores:
         cf_values = np.array(list(cf_scores.values())).reshape(-1, 1)
         cf_values = MinMaxScaler().fit_transform(cf_values).flatten()
