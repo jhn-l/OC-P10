@@ -3,7 +3,6 @@ import boto3
 import pandas as pd
 import pickle
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import StandardScaler
 
