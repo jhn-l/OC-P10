@@ -2,6 +2,7 @@ import os
 import boto3
 import pandas as pd
 import pickle
+import numpy as np
 import scipy.sparse as sp
 from implicit.als import AlternatingLeastSquares
 
@@ -29,14 +30,22 @@ def load_interactions():
 
 # 📌 Transformer les interactions en une matrice creuse pour `implicit`
 def transform_to_sparse_matrix(interactions_df):
-    user_map = {u: i for i, u in enumerate(interactions_df["user_id"].unique())}
-    item_map = {a: i for i, a in enumerate(interactions_df["article_id"].unique())}
-    
+    user_map = {user: i for i, user in enumerate(interactions_df["user_id"].unique())}
+    item_map = {item: i for i, item in enumerate(interactions_df["article_id"].unique())}
+
     rows = interactions_df["user_id"].map(user_map).values
     cols = interactions_df["article_id"].map(item_map).values
-    data = interactions_df["session_size"].values
-    
+    data = interactions_df["session_size"].values  # Vérifier que cette colonne existe bien
+
+    # ✅ Forcer les types compatibles avec scipy.sparse
+    data = data.astype(np.float32)
+    rows = rows.astype(np.int32)
+    cols = cols.astype(np.int32)
+
+    print(f"Data dtype: {data.dtype}, Rows dtype: {rows.dtype}, Cols dtype: {cols.dtype}")  # Debugging
+
     sparse_matrix = sp.csr_matrix((data, (rows, cols)), shape=(len(user_map), len(item_map)))
+
     return sparse_matrix, user_map, item_map
 
 # 📌 Entraîner un modèle de filtrage collaboratif `implicit`
