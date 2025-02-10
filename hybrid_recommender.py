@@ -79,16 +79,15 @@ def build_user_item_matrix(interactions_df):
 
 # 📌 Recommander des articles avec ALS
 def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
-    # ✅ Vérification si l'utilisateur est bien dans la liste des users
-    user_ids_array = user_ids.to_numpy()
-    
-    if user_id not in user_ids_array:
+    # ✅ Vérifier si l'utilisateur existe dans la liste des utilisateurs
+    if user_id not in user_ids.to_numpy():
         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
 
-    # ✅ Convertir user_id en index dans la matrice
-    user_index = np.where(user_ids_array == user_id)[0][0]
+    # ✅ Trouver l’index correct de l’utilisateur dans la matrice utilisateur-article
+    user_index = user_ids[user_ids == user_id].index[0]  # Trouver l’index dans user_ids
+    user_index = user_ids.cat.codes[user_index]  # Convertir en index numérique
 
-    # ✅ Vérifier que l'index utilisateur est bien dans la matrice utilisateur-article
+    # ✅ Vérifier que cet index est bien dans la matrice utilisateur-article
     if user_index >= user_item_matrix.shape[0]:
         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} hors de la plage d'indexation"})}
 
