@@ -3,14 +3,9 @@ import boto3
 import pandas as pd
 import pickle
 import numpy as np
+import scipy.sparse as sp
 from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import StandardScaler
-
-# 📌 Désactiver certaines optimisations OpenBLAS pour éviter les erreurs dans AWS Lambda
-os.environ["JOBLIB_MULTIPROCESSING"] = "0"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 # 📌 Configurer AWS
 S3_BUCKET_NAME = "my-recommender-dataset"
@@ -36,6 +31,22 @@ def load_interactions():
     print("✅ Interactions chargées - Nombre de lignes:", interactions_df.shape[0])
     return interactions_df
 
+# 📌 Construire une matrice utilisateur-article **sparse**
+def build_sparse_matrix(interactions_df):
+    print("🔹 Construction de la matrice utilisateur-article éparse...")
+
+    user_ids = interactions_df["user_id"].astype("category")
+    article_ids = interactions_df["article_id"].astype("category")
+
+    row = user_ids.cat.codes.values
+    col = article_ids.cat.codes.values
+    data = np.ones(len(interactions_df))
+
+    sparse_matrix = sp.csr_matrix((data, (row, col)), shape=(user_ids.cat.categories.size, article_ids.cat.categories.size))
+    
+    print(f"✅ Matrice utilisateur-article construite avec {sparse_matrix.nnz} interactions non nulles.")
+    return sparse_matrix, user_ids, article_ids
+
 # 📌 Sélection automatique de `n_components`
 def choose_n_components(X, variance_threshold=0.95):
     svd = TruncatedSVD(n_components=min(300, X.shape[1] - 1))
@@ -49,25 +60,19 @@ def choose_n_components(X, variance_threshold=0.95):
 
 # 📌 Entraîner un modèle de filtrage collaboratif avec TruncatedSVD
 def train_collaborative_model(interactions_df):
-    print("🔹 Préparation des données pour TruncatedSVD...")
+    print("🔹 Création de la matrice utilisateur-article...")
+    sparse_matrix, user_ids, article_ids = build_sparse_matrix(interactions_df)
 
-    user_article_matrix = interactions_df.pivot_table(index="user_id", columns="article_id", values="session_size", fill_value=0)
-    X = user_article_matrix.values
-
-    # Normalisation
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # Sélection automatique du nombre de composantes
-    n_components = choose_n_components(X_scaled)
-
+    # 🔹 Réduction de dimension avec TruncatedSVD
     print("🔹 Entraînement du modèle SVD...")
+    n_components = choose_n_components(sparse_matrix)
+
     svd = TruncatedSVD(n_components=n_components)
-    svd.fit(X_scaled)
+    svd.fit(sparse_matrix)
 
     print(f"✅ Sauvegarde du modèle localement dans {MODEL_PATH}...")
     with open(MODEL_PATH, "wb") as f:
-        pickle.dump(svd, f)
+        pickle.dump((svd, user_ids, article_ids), f)  # Stocker les index pour l'inférence
 
     upload_model_to_s3()
     print("🚀 Modèle entraîné et sauvegardé avec succès sur S3 !")
