@@ -10,7 +10,8 @@ import implicit
 S3_BUCKET = os.getenv("AWS_S3_BUCKET", "my-recommender-dataset")  # Nom du bucket S3
 S3_DATA_PREFIX = "clicks/"  # Dossier des fichiers dans S3
 LOCAL_DATA_PATH = "/tmp/clicks/"  # Dossier temporaire dans Lambda
-MODEL_PATH = "/var/task/recommender_model_hybrid.pkl"  # Sauvegarde locale du modèle
+MODEL_PATH = "/tmp/recommender_model_hybrid.pkl" # sauvegarde local du modèle
+
 
 # ✅ Créer un client S3
 s3_client = boto3.client("s3")
