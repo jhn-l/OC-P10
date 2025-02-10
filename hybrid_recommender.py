@@ -79,21 +79,26 @@ def build_user_item_matrix(interactions_df):
 
 # 📌 Recommander des articles avec ALS
 def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
-    # ✅ Convertir user_id en entier pour éviter les problèmes de type
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return {"statusCode": 400, "body": json.dumps({"error": "Invalid user_id format"})}
-
-    # ✅ Vérification correcte de l'existence de l'utilisateur
-    if user_id not in user_ids.to_numpy(dtype=int):
+    # ✅ Vérification si l'utilisateur est bien dans la liste des users
+    user_ids_array = user_ids.to_numpy()
+    
+    if user_id not in user_ids_array:
         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
 
+    # ✅ Convertir user_id en index dans la matrice
+    user_index = np.where(user_ids_array == user_id)[0][0]
 
-    user_index = np.where(user_ids.to_numpy() == user_id)[0][0]
-    print(f"🔍 Type de user_item_matrix : {type(user_item_matrix)}") 
+    # ✅ Vérifier que l'index utilisateur est bien dans la matrice utilisateur-article
+    if user_index >= user_item_matrix.shape[0]:
+        return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} hors de la plage d'indexation"})}
+
+    # ✅ Récupérer les interactions de l'utilisateur
     user_items = user_item_matrix[user_index]
+
+    # ✅ Générer les recommandations avec ALS
     recommendations = model.recommend(user_index, user_items, N=top_n)
+
+    # ✅ Convertir les indices des articles en `article_id`
     recommended_articles = [item_ids.cat.categories[i] for i in recommendations[0]]
 
     return recommended_articles
