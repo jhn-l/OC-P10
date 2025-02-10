@@ -8,7 +8,7 @@ import pickle
 # 📌 Définir le dossier temporaire pour `surprise`
 os.environ["SURPRISE_DATASET_DIR"] = "/tmp"
 
-from surprise import SVD, Dataset, Reader
+#from surprise import SVD, Dataset, Reader
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
 
@@ -28,7 +28,7 @@ dynamodb = boto3.client("dynamodb")
 
 
 # 📌 Empêcher `surprise` de télécharger des datasets intégrés
-Dataset.load_builtin = lambda name: None
+#Dataset.load_builtin = lambda name: None
 
 # 📌 Charger un fichier depuis S3 en DataFrame
 def load_csv_from_s3(file_key):

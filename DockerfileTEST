@@ -1,4 +1,4 @@
-# 🔹 Étape 1 : Image de construction
+# 🔹 Étape 1 : Image de construction pour l’entraînement
 FROM python:3.12 AS build
 
 ARG FUNCTION_DIR="/function"
@@ -13,11 +13,11 @@ RUN apt-get update && apt-get install -y \
 # ✅ Installer NumPy en version compatible (1.x)
 RUN pip install --no-cache-dir "numpy<2"
 
-# ✅ Installer les autres dépendances SANS Surprise
+# ✅ Installer les dépendances nécessaires pour l’inférence (sans `Surprise`)
 RUN pip install --no-cache-dir --target ${FUNCTION_DIR} \
     scikit-learn boto3 pandas
 
-# ✅ Installer `Surprise` SEULEMENT après NumPy pour éviter les erreurs de compilation
+# ✅ Installer `Surprise` SEULEMENT pour l'entraînement
 RUN pip install --no-cache-dir --target ${FUNCTION_DIR} \
     --no-binary :all: --force-reinstall scikit-surprise
 
@@ -35,12 +35,12 @@ COPY train.py .
 # ✅ Exécuter l'entraînement du modèle
 RUN python3 train.py
 
-# 🔹 Étape 3 : Image finale pour AWS Lambda
+# 🔹 Étape 3 : Image finale pour AWS Lambda (sans `Surprise`)
 FROM python:3.12-slim AS final
 ARG FUNCTION_DIR="/function"
 WORKDIR ${FUNCTION_DIR}
 
-# ✅ Copier uniquement les dépendances préinstallées
+# ✅ Copier uniquement les dépendances préinstallées (sans `Surprise`)
 COPY --from=build ${FUNCTION_DIR} ${FUNCTION_DIR}
 
 # ✅ Copier le modèle entraîné depuis l’étape `train`
