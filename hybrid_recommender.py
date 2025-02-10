@@ -131,6 +131,15 @@ def store_recommendations_in_dynamodb(user_id, recommendations):
         }
     )
     print("✅ Recommandations sauvegardées avec succès.")
+    
+# 🚀 Charger les données UNE SEULE FOIS au démarrage de la Lambda
+try:
+    interactions_df = load_interactions()
+    embeddings = load_articles_embeddings()
+    model = load_model_from_s3()
+except Exception as e:
+    print(f"❌ Erreur lors du chargement initial : {str(e)}")
+    
 
 # 📌 Fonction Lambda
 def lambda_handler(event, context):
@@ -140,9 +149,9 @@ def lambda_handler(event, context):
     if not user_id:
         return {"statusCode": 400, "body": json.dumps({"error": "user_id is required"})}
 
-    interactions_df = load_interactions()
-    embeddings = load_articles_embeddings()
-    model = load_model_from_s3()
+    # interactions_df = load_interactions()
+    # embeddings = load_articles_embeddings()
+    # model = load_model_from_s3()
 
     recommendations = hybrid_recommendation(user_id, interactions_df, embeddings, model)
 
