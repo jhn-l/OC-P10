@@ -1,19 +1,21 @@
-# 🔹 Étape 1 : Image de base pour l’installation des dépendances
+# 🔹 Étape 1 : Image de construction
 FROM python:3.12 AS build
 
-# Définir un répertoire de travail
 ARG FUNCTION_DIR="/function"
 RUN mkdir -p ${FUNCTION_DIR}
 WORKDIR ${FUNCTION_DIR}
 
 # ✅ Installer les outils de compilation nécessaires
 RUN apt-get update && apt-get install -y \
-    gcc g++ make libstdc++-12-dev libstdc++-11-dev libgomp1 \
+    gcc g++ make libstdc++-12-dev libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Copier et installer les dépendances (y compris Surprise, scikit-learn et boto3)
-COPY requirements.txt .
-RUN pip install --no-cache-dir --target ${FUNCTION_DIR} -r requirements.txt boto3 scikit-learn surprise numpy pandas
+# ✅ Forcer NumPy à rester en version 1.x pour éviter les erreurs de compatibilité
+RUN pip install --no-cache-dir numpy<2
+
+# ✅ Installer les dépendances
+RUN pip install --no-cache-dir --target ${FUNCTION_DIR} \
+    scikit-learn surprise boto3 pandas
 
 # 🔹 Étape 2 : Entraînement du modèle
 FROM build AS train
@@ -25,21 +27,6 @@ ENV SURPRISE_DATASET_DIR="/tmp"
 
 # ✅ Copier le script d'entraînement
 COPY train.py .
-
-# ✅ Passer les credentials AWS via des arguments de build
-ARG AWS_ACCESS_KEY_ID
-ARG AWS_SECRET_ACCESS_KEY
-ARG AWS_REGION
-
-# ✅ Définir les variables d'environnement pour `boto3`
-ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-ENV AWS_REGION=${AWS_REGION}
-
-# ✅ Vérifier les valeurs des variables d’environnement (debug)
-RUN echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" && \
-    echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" && \
-    echo "AWS_REGION=$AWS_REGION"
 
 # ✅ Exécuter l'entraînement du modèle
 RUN python3 train.py
