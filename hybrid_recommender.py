@@ -78,14 +78,40 @@ def build_user_item_matrix(interactions_df):
     return user_item_sparse.tocsr(), user_ids, item_ids
 
 # 📌 Recommander des articles avec ALS
+# def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
+#     # ✅ Vérifier si l'utilisateur existe dans la liste des utilisateurs
+#     if user_id not in user_ids.to_numpy():
+#         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
+
+#     # ✅ Trouver l’index correct de l’utilisateur dans la matrice utilisateur-article
+#     user_index = user_ids[user_ids == user_id].index[0]  # Trouver l’index dans user_ids
+#     user_index = user_ids.cat.codes[user_index]  # Convertir en index numérique
+
+#     # ✅ Vérifier que cet index est bien dans la matrice utilisateur-article
+#     if user_index >= user_item_matrix.shape[0]:
+#         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} hors de la plage d'indexation"})}
+
+#     # ✅ Récupérer les interactions de l'utilisateur
+#     user_items = user_item_matrix[user_index]
+
+#     # ✅ Générer les recommandations avec ALS
+#     recommendations = model.recommend(user_index, user_items, N=top_n)
+
+#     # ✅ Convertir les indices des articles en `article_id`
+#     recommended_articles = [item_ids.cat.categories[i] for i in recommendations[0]]
+
+#     return recommended_articles
 def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
-    # ✅ Vérifier si l'utilisateur existe dans la liste des utilisateurs
+    # ✅ Vérifier si l'utilisateur existe
     if user_id not in user_ids.to_numpy():
         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
 
-    # ✅ Trouver l’index correct de l’utilisateur dans la matrice utilisateur-article
-    user_index = user_ids[user_ids == user_id].index[0]  # Trouver l’index dans user_ids
-    user_index = user_ids.cat.codes[user_index]  # Convertir en index numérique
+    # ✅ Vérifier si user_id est bien dans les catégories
+    if user_id not in user_ids.cat.categories:
+        return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} absent des catégories"})}
+
+    # ✅ Trouver l’index correct de l’utilisateur
+    user_index = np.where(user_ids.to_numpy() == user_id)[0][0]
 
     # ✅ Vérifier que cet index est bien dans la matrice utilisateur-article
     if user_index >= user_item_matrix.shape[0]:
@@ -97,10 +123,17 @@ def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids,
     # ✅ Générer les recommandations avec ALS
     recommendations = model.recommend(user_index, user_items, N=top_n)
 
+    # ✅ Vérifier le nombre de recommandations générées
+    print(f"⚠️ Nombre total de recommandations générées: {len(recommendations[0])}, Attendu: {top_n}")
+
     # ✅ Convertir les indices des articles en `article_id`
     recommended_articles = [item_ids.cat.categories[i] for i in recommendations[0]]
 
-    return recommended_articles
+    print(f"✅ Articles recommandés (ALS) pour {user_id} : {recommended_articles}")
+
+    # ✅ Convertir en `int` pour JSON
+    return [int(article_id) for article_id in recommended_articles]
+
 
 # ✅ Charger les données utilisateur-article au démarrage
 print("🔹 Chargement des données utilisateur/article...")
