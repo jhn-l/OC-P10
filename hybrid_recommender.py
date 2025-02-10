@@ -81,7 +81,7 @@ def hybrid_recommendation(user_id, interactions_df, embeddings, model_data, top_
         recommended_items = model.recommend(user_idx, None, N=top_n)
         known_articles = [item_mapping[i] for i, _ in recommended_items]
     
-    all_articles = list(len(embeddings))
+    all_articles = list(range(len(embeddings)))
     unknown_articles = np.setdiff1d(all_articles, known_articles)
 
     # 🔹 Filtrage basé sur le contenu
