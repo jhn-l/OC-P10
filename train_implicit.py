@@ -10,7 +10,7 @@ import implicit
 # 📌 Paramètres
 DATA_URL = "https://s3-eu-west-1.amazonaws.com/static.oc-static.com/prod/courses/files/AI+Engineer/Project+9+-+R%C3%A9alisez+une+application+mobile+de+recommandation+de+contenu/news-portal-user-interactions-by-globocom.zip"
 ZIP_FILE = "/tmp/news-portal.zip"
-EXTRACTED_FOLDER = "/tmp/clicks/"
+EXTRACTED_FOLDER = "/tmp/"
 MODEL_PATH = "/tmp/recommender_model_implicit.pkl"  # Sauvegarde locale du modèle
 DATA_FILES = ["clicks_sample.csv"]  # Liste des fichiers nécessaires
 

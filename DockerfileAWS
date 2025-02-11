@@ -49,7 +49,9 @@ COPY --from=train /tmp/recommender_model_implicit.pkl /var/task/recommender_mode
 
 COPY --from=train /tmp/ /tmp/
 
-RUN ls -la /tmp
+RUN ls -la /tmp/
+
+RUN ls -la /tmp/clicks
 
 # ✅ Copier le fichier de recommandation (Lambda handler)
 COPY hybrid_recommender.py .
