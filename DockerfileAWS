@@ -62,4 +62,4 @@ COPY hybrid_recommender.py .
 RUN set -e
 
 # 🔹 Définition du point d’entrée de la Lambda
-CMD ["hybrid_recommender.lambda_handler"]
+CMD ["implicit_recommender.lambda_handler"]

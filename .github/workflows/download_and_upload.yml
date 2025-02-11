@@ -65,15 +65,15 @@ jobs:
           AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: |
-          if aws lambda get-function --function-name HybridRecommenderLambda > /dev/null 2>&1; then
-            echo "⚠️ La fonction HybridRecommenderLambda existe déjà. Suppression..."
-            aws lambda delete-function --function-name HybridRecommenderLambda
+          if aws lambda get-function --function-name ImplicitRecommenderLambda > /dev/null 2>&1; then
+            echo "⚠️ La fonction ImplicitRecommenderLambda existe déjà. Suppression..."
+            aws lambda delete-function --function-name ImplicitRecommenderLambda
             sleep 20  # Pause pour éviter tout conflit
           fi
           
           echo "🚀 Création de la fonction Lambda HybridRecommender..."
           aws lambda create-function \
-            --function-name HybridRecommenderLambda \
+            --function-name ImplicitRecommenderLambda \
             --package-type Image \
             --code ImageUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hybrid-recommender:latest \
             --role $AWS_LAMBDA_ROLE_ARN
@@ -92,11 +92,11 @@ jobs:
           
           echo "⚡ Vérification que la Lambda est active avant mise à jour..."
           for i in {1..10}; do
-            STATUS=$(aws lambda get-function --function-name HybridRecommenderLambda --query 'Configuration.State' --output text)
+            STATUS=$(aws lambda get-function --function-name ImplicitRecommenderLambda --query 'Configuration.State' --output text)
             if [ "$STATUS" == "Active" ]; then
               echo "✅ Lambda est Active, mise à jour en cours..."
               aws lambda update-function-code \
-                --function-name HybridRecommenderLambda \
+                --function-name ImplicitRecommenderLambda \
                 --image-uri $IMAGE_URI
               echo "✅ Déploiement terminé !"
               exit 0
@@ -116,13 +116,13 @@ jobs:
         run: |
           echo "⚡ Vérification que la Lambda est prête avant mise à jour..."
           for i in {1..30}; do
-              STATUS=$(aws lambda get-function --function-name HybridRecommenderLambda --query 'Configuration.State' --output text)
-              LAST_UPDATE_STATUS=$(aws lambda get-function --function-name HybridRecommenderLambda --query 'Configuration.LastUpdateStatus' --output text)
+              STATUS=$(aws lambda get-function --function-name ImplicitRecommenderLambda --query 'Configuration.State' --output text)
+              LAST_UPDATE_STATUS=$(aws lambda get-function --function-name ImplicitRecommenderLambda --query 'Configuration.LastUpdateStatus' --output text)
 
               if [[ "$STATUS" == "Active" && "$LAST_UPDATE_STATUS" == "Successful" ]]; then
                   echo "✅ Lambda est Active et prête, mise à jour de la configuration..."
                   aws lambda update-function-configuration \
-                    --function-name HybridRecommenderLambda \
+                    --function-name ImplicitRecommenderLambda \
                     --memory-size 2048 \
                     --ephemeral-storage '{"Size": 512}' \
                     --timeout 305 
