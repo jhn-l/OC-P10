@@ -106,14 +106,15 @@ def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids,
     if user_id not in user_ids.cat.categories:
         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
 
-    # ✅ Trouver l’index utilisateur dans la matrice
-    user_index = user_ids.cat.codes[user_ids.get_loc(user_id)]
+    # ✅ Trouver l’index utilisateur correct
+    user_index = user_ids[user_ids == user_id].index[0]  # Trouver l'index réel
+    user_index = user_ids.cat.codes[user_index]  # Convertir en index numérique
 
     # ✅ Vérifier que cet index est bien dans la matrice utilisateur-article
     if user_index >= user_item_matrix.shape[0]:
         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} hors de la plage d'indexation"})}
 
-    # ✅ Vérifier si l'utilisateur a des interactions (évite les recommandations par défaut)
+    # ✅ Vérifier si l'utilisateur a des interactions (évite des recommandations par défaut)
     if user_item_matrix[user_index].nnz == 0:
         return {"statusCode": 404, "body": json.dumps({"error": f"L'utilisateur {user_id} n'a aucune interaction"})}
 
@@ -129,7 +130,6 @@ def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids,
     print(f"✅ Articles recommandés (ALS) pour {user_id} : {recommended_articles}")
 
     return recommended_articles
-
 
 # ✅ Charger les données utilisateur-article au démarrage
 print("🔹 Chargement des données utilisateur/article...")
