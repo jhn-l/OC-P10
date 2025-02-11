@@ -146,4 +146,4 @@ jobs:
           aws apigatewayv2 create-api \
             --name "RecommenderAPI" \
             --protocol-type HTTP \
-            --target arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:function:GetUserRecommendations
+            --target arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:function:ImplicitRecommenderLambda
