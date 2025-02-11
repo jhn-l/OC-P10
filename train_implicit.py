@@ -59,13 +59,19 @@ def load_interactions():
     
     df_list = [pd.read_csv(f) for f in all_files]
     interactions_df = pd.concat(df_list, ignore_index=True)
+
+    # ✅ Vérifier que `click_timestamp` est bien disponible
+    if "click_timestamp" not in interactions_df.columns:
+        raise KeyError("❌ La colonne 'click_timestamp' est introuvable dans les données !")
+
     interactions_df.rename(columns={"click_article_id": "article_id"}, inplace=True)
     interactions_df["article_id"] = interactions_df["article_id"].astype(int)
     interactions_df["user_id"] = interactions_df["user_id"].astype(int)
-    
+    interactions_df["click_timestamp"] = interactions_df["click_timestamp"].astype(int)  # S'assurer que c'est bien un entier
+
     # 📌 Donner plus de poids au dernier article visité
     interactions_df["weight"] = 1  # Poids normal
-    interactions_df.loc[interactions_df.groupby("user_id")["timestamp"].idxmax(), "weight"] = 5  # Booster le dernier article
+    interactions_df.loc[interactions_df.groupby("user_id")["click_timestamp"].idxmax(), "weight"] = 5  # Booster le dernier article
     
     print(f"✅ Interactions chargées - Nombre de lignes: {interactions_df.shape[0]}")
     return interactions_df
