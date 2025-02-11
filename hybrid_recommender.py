@@ -23,14 +23,14 @@ class RecommenderSystem:
 
     def get_data_files(self):
         if not os.path.exists(self.data_folder):
-            output = subprocess.run(['ls', '-la', '/tmp'], capture_output=True, text=True)
-            print(f"📂 Contenu du répertoire /tmp :\n{output.stdout}")
+            output = subprocess.run(['ls', '-la', '/var/task'], capture_output=True, text=True)
+            print(f"📂 Contenu du répertoire /var/task :\n{output.stdout}")
             raise FileNotFoundError(f"❌ Le dossier {self.data_folder} n'existe pas.")
         return [f for f in os.listdir(self.data_folder) if f.endswith(".csv")]
 
     def check_files_exist(self):
         if not self.data_files:
-            raise FileNotFoundError("❌ Aucun fichier CSV trouvé dans /tmp/clicks/")
+            raise FileNotFoundError("❌ Aucun fichier CSV trouvé dans /var/task/")
 
     def load_interactions(self):
         self.check_files_exist()
@@ -96,7 +96,7 @@ class RecommenderSystem:
 # Initialisation du système de recommandation
 recommender = RecommenderSystem(
     model_path="/var/task/recommender_model_implicit.pkl",
-    data_folder="/tmp/clicks/"
+    data_folder="/var/task/clicks"
 )
 
 # 📌 Fonction Lambda
