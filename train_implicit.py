@@ -1,56 +1,50 @@
 import os
 import pickle
-import boto3
+import requests
+import zipfile
 import pandas as pd
 import numpy as np
 import scipy.sparse as sparse
 import implicit
 
 # 📌 Paramètres
-S3_BUCKET = os.getenv("AWS_S3_BUCKET", "my-recommender-dataset")  # Nom du bucket S3
-S3_DATA_PREFIX = "clicks/"  # Dossier des fichiers dans S3
-LOCAL_DATA_PATH = "/tmp/clicks/"  # Dossier temporaire dans Lambda
-MODEL_PATH = "/tmp/recommender_model_hybrid.pkl" # sauvegarde local du modèle
+DATA_URL = "https://s3-eu-west-1.amazonaws.com/static.oc-static.com/prod/courses/files/AI+Engineer/Project+9+-+R%C3%A9alisez+une+application+mobile+de+recommandation+de+contenu/news-portal-user-interactions-by-globocom.zip"
+ZIP_FILE = "/tmp/news-portal.zip"
+EXTRACTED_FOLDER = "/tmp/clicks/"
+MODEL_PATH = "/tmp/recommender_model_implicit.pkl"  # Sauvegarde locale du modèle
+DATA_FILES = ["clicks_sample.csv"]  # Liste des fichiers nécessaires
 
+# ✅ Télécharger le fichier ZIP
+def download_zip_file():
+    if not os.path.exists(ZIP_FILE):
+        print(f"🔹 Téléchargement de {DATA_URL}...")
+        response = requests.get(DATA_URL, stream=True)
+        with open(ZIP_FILE, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        print("✅ Téléchargement terminé !")
+    else:
+        print("✅ Fichier ZIP déjà présent, téléchargement ignoré.")
 
-# ✅ Créer un client S3
-s3_client = boto3.client("s3")
-
-# ✅ Télécharger les fichiers depuis S3
-def download_data_from_s3():
-    print(f"📥 Téléchargement des fichiers depuis S3: s3://{S3_BUCKET}/{S3_DATA_PREFIX} ...")
-
-    # Assurer que le dossier local existe
-    os.makedirs(LOCAL_DATA_PATH, exist_ok=True)
-
-    # Lister les fichiers S3
-    response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=S3_DATA_PREFIX)
-    
-    if "Contents" not in response:
-        print("❌ Aucun fichier trouvé sur S3.")
-        return []
-
-    files_downloaded = []
-    for obj in response["Contents"]:
-        file_key = obj["Key"]
-        local_file_path = os.path.join(LOCAL_DATA_PATH, os.path.basename(file_key))
-        
-        if file_key.endswith(".csv"):  # On télécharge uniquement les fichiers CSV
-            print(f"📥 Téléchargement: {file_key} -> {local_file_path}")
-            s3_client.download_file(S3_BUCKET, file_key, local_file_path)
-            files_downloaded.append(local_file_path)
-
-    print(f"✅ {len(files_downloaded)} fichiers téléchargés depuis S3.")
-    return files_downloaded
+# ✅ Extraire les fichiers du ZIP
+def extract_zip_file():
+    if not os.path.exists(EXTRACTED_FOLDER):
+        os.makedirs(EXTRACTED_FOLDER, exist_ok=True)
+    if not all(os.path.exists(os.path.join(EXTRACTED_FOLDER, file)) for file in DATA_FILES):
+        print(f"🔹 Décompression de {ZIP_FILE}...")
+        with zipfile.ZipFile(ZIP_FILE, "r") as zip_ref:
+            zip_ref.extractall(EXTRACTED_FOLDER)
+        print("✅ Décompression terminée !")
+    else:
+        print("✅ Fichiers déjà extraits, extraction ignorée.")
 
 # ✅ Charger les interactions utilisateur-article
 def load_interactions():
-    files = download_data_from_s3()
-    if not files:
-        raise Exception("❌ Impossible de charger les données : aucun fichier trouvé.")
-
+    if not all(os.path.exists(os.path.join(EXTRACTED_FOLDER, file)) for file in DATA_FILES):
+        raise FileNotFoundError("❌ Les fichiers de données ne sont pas disponibles dans /tmp/")
+    
     print("🔹 Chargement des interactions utilisateur-article...")
-    df_list = [pd.read_csv(f) for f in files]
+    df_list = [pd.read_csv(os.path.join(EXTRACTED_FOLDER, file)) for file in DATA_FILES]
     interactions_df = pd.concat(df_list, ignore_index=True)
     interactions_df.rename(columns={"click_article_id": "article_id"}, inplace=True)
     interactions_df["article_id"] = interactions_df["article_id"].astype(int)
@@ -80,7 +74,7 @@ def train_implicit_model(user_item_matrix):
     print("🚀 Modèle ALS entraîné avec succès !")
     return model
 
-# ✅ Sauvegarde du modèle en local pour Docker Lambda
+# ✅ Sauvegarde du modèle en local
 def save_model(model, model_path):
     print(f"📤 Sauvegarde du modèle dans {model_path}...")
     with open(model_path, "wb") as f:
@@ -91,11 +85,13 @@ def save_model(model, model_path):
 if __name__ == "__main__":
     print("🚀 Début de l'entraînement du modèle...")
     
+    download_zip_file()
+    extract_zip_file()
     interactions_df = load_interactions()
     user_item_matrix = build_user_item_matrix(interactions_df)
     model = train_implicit_model(user_item_matrix)
 
-    # ✅ Sauvegarde du modèle en local pour Docker Lambda
+    # ✅ Sauvegarde du modèle en local
     save_model(model, MODEL_PATH)
 
     print("🎯 Fin de l'entraînement et sauvegarde du modèle !")

@@ -1,140 +1,80 @@
 import os
 import json
 import pickle
-import boto3
 import numpy as np
 import pandas as pd
-from implicit.als import AlternatingLeastSquares
 import scipy.sparse as sparse
+import implicit
 
-# 📌 Chemins et paramètres
-MODEL_PATH = "/var/task/recommender_model_hybrid.pkl"  # 📥 Modèle ALS stocké dans Docker Lambda
-S3_BUCKET = os.getenv("AWS_S3_BUCKET", "my-recommender-dataset")  # 📂 Nom du bucket S3
-S3_DATA_PREFIX = "clicks/"  # 📂 Chemin des fichiers sur S3
-LOCAL_DATA_PATH = "/tmp/clicks/"  # 📂 Dossier temporaire Lambda
+class RecommenderSystem:
+    def __init__(self, model_path, data_folder, data_files):
+        self.model_path = model_path
+        self.data_folder = data_folder
+        self.data_files = data_files
+        self.model = self.load_model()
+        self.interactions_df = self.load_interactions()
+        self.user_item_matrix, self.user_ids, self.item_ids = self.build_user_item_matrix()
 
-# ✅ Charger le modèle ALS
-print("🔹 Chargement du modèle ALS...")
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"❌ Modèle non trouvé: {MODEL_PATH}")
+    def check_files_exist(self):
+        if not all(os.path.exists(os.path.join(self.data_folder, file)) for file in self.data_files):
+            raise FileNotFoundError("❌ Les fichiers de données ne sont pas disponibles dans /tmp/")
 
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
-print("✅ Modèle ALS chargé avec succès !")
+    def load_interactions(self):
+        self.check_files_exist()
+        print("🔹 Chargement des interactions utilisateur-article...")
+        df_list = [pd.read_csv(os.path.join(self.data_folder, file)) for file in self.data_files]
+        interactions_df = pd.concat(df_list, ignore_index=True)
+        interactions_df.rename(columns={"click_article_id": "article_id"}, inplace=True)
+        interactions_df["article_id"] = interactions_df["article_id"].astype(int)
+        interactions_df["user_id"] = interactions_df["user_id"].astype(int)
+        print(f"✅ Interactions chargées - Nombre de lignes: {interactions_df.shape[0]}")
+        return interactions_df
 
-# ✅ Client S3 pour télécharger les fichiers
-s3_client = boto3.client("s3")
+    def build_user_item_matrix(self):
+        print("🔹 Construction de la matrice utilisateur-article en format sparse...")
+        user_ids = self.interactions_df["user_id"].astype("category")
+        item_ids = self.interactions_df["article_id"].astype("category")
 
-# 📌 Télécharger les fichiers d'interactions depuis S3
-def download_data_from_s3():
-    print(f"📥 Téléchargement des fichiers depuis S3: s3://{S3_BUCKET}/{S3_DATA_PREFIX} ...")
-    os.makedirs(LOCAL_DATA_PATH, exist_ok=True)
+        user_item_sparse = sparse.coo_matrix(
+            (np.ones(len(self.interactions_df)), 
+             (user_ids.cat.codes, item_ids.cat.codes))
+        )
+        print(f"✅ Matrice utilisateur-article créée : {user_item_sparse.shape[0]} utilisateurs, {user_item_sparse.shape[1]} articles.")
+        return user_item_sparse.tocsr(), user_ids, item_ids
 
-    response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=S3_DATA_PREFIX)
-    if "Contents" not in response:
-        print("❌ Aucun fichier trouvé sur S3.")
-        return []
+    def load_model(self):
+        print("🔹 Chargement du modèle ALS...")
+        if not os.path.exists(self.model_path):
+            raise FileNotFoundError(f"❌ Modèle non trouvé: {self.model_path}")
+        with open(self.model_path, "rb") as f:
+            model = pickle.load(f)
+        print("✅ Modèle ALS chargé avec succès !")
+        return model
 
-    files_downloaded = []
-    for obj in response["Contents"]:
-        file_key = obj["Key"]
-        local_file_path = os.path.join(LOCAL_DATA_PATH, os.path.basename(file_key))
-        
-        if file_key.endswith(".csv"):
-            print(f"📥 Téléchargement: {file_key} -> {local_file_path}")
-            s3_client.download_file(S3_BUCKET, file_key, local_file_path)
-            files_downloaded.append(local_file_path)
+    def recommend_articles(self, user_id, top_n=5):
+        if user_id not in self.user_ids.cat.categories:
+            return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
 
-    print(f"✅ {len(files_downloaded)} fichiers téléchargés depuis S3.")
-    return files_downloaded
+        user_index = self.user_ids[self.user_ids == user_id].index[0]
+        user_index = self.user_ids.cat.codes[user_index]
 
-# 📌 Charger les interactions utilisateur-article
-def load_interactions():
-    files = download_data_from_s3()
-    if not files:
-        raise Exception("❌ Impossible de charger les données : aucun fichier trouvé.")
+        if user_index >= self.user_item_matrix.shape[0]:
+            return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} hors de la plage d'indexation"})}
 
-    print("🔹 Chargement des interactions utilisateur-article...")
-    df_list = [pd.read_csv(f) for f in files]
-    interactions_df = pd.concat(df_list, ignore_index=True)
-    interactions_df.rename(columns={"click_article_id": "article_id"}, inplace=True)
-    interactions_df["article_id"] = interactions_df["article_id"].astype(int)
-    interactions_df["user_id"] = interactions_df["user_id"].astype(int)
-    print(f"✅ Interactions chargées - Nombre de lignes: {interactions_df.shape[0]}")
-    return interactions_df
+        if self.user_item_matrix[user_index].nnz == 0:
+            return {"statusCode": 404, "body": json.dumps({"error": f"L'utilisateur {user_id} n'a aucune interaction"})}
 
-# 📌 Construire la matrice utilisateur-article sous format sparse
-def build_user_item_matrix(interactions_df):
-    print("🔹 Construction de la matrice utilisateur-article en format sparse...")
-    user_ids = interactions_df["user_id"].astype("category")
-    item_ids = interactions_df["article_id"].astype("category")
+        recommendations = self.model.recommend(user_index, self.user_item_matrix[user_index], N=top_n)
+        recommended_articles = [int(self.item_ids.cat.categories[i]) for i in recommendations[0]]
 
-    user_item_sparse = sparse.coo_matrix(
-        (np.ones(len(interactions_df)), 
-         (user_ids.cat.codes, item_ids.cat.codes))
-    )
-    print(f"✅ Matrice utilisateur-article créée : {user_item_sparse.shape[0]} utilisateurs, {user_item_sparse.shape[1]} articles.")
+        return recommended_articles
 
-    return user_item_sparse.tocsr(), user_ids, item_ids
-
-# 📌 Recommander des articles avec ALS
-# def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
-#     # ✅ Vérifier si l'utilisateur existe dans la liste des utilisateurs
-#     if user_id not in user_ids.to_numpy():
-#         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
-
-#     # ✅ Trouver l’index correct de l’utilisateur dans la matrice utilisateur-article
-#     user_index = user_ids[user_ids == user_id].index[0]  # Trouver l’index dans user_ids
-#     user_index = user_ids.cat.codes[user_index]  # Convertir en index numérique
-
-#     # ✅ Vérifier que cet index est bien dans la matrice utilisateur-article
-#     if user_index >= user_item_matrix.shape[0]:
-#         return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} hors de la plage d'indexation"})}
-
-#     # ✅ Récupérer les interactions de l'utilisateur
-#     user_items = user_item_matrix[user_index]
-
-#     # ✅ Générer les recommandations avec ALS
-#     recommendations = model.recommend(user_index, user_items, N=top_n)
-
-#     # ✅ Convertir les indices des articles en `article_id`
-#     recommended_articles = [item_ids.cat.categories[i] for i in recommendations[0]]
-
-#     return recommended_articles
-def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids, top_n=5):
-    # ✅ Vérifier si l'utilisateur existe
-    if user_id not in user_ids.cat.categories:
-        return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} inconnu"})}
-
-    # ✅ Trouver l’index utilisateur correct
-    user_index = user_ids[user_ids == user_id].index[0]  # Trouver l'index réel
-    user_index = user_ids.cat.codes[user_index]  # Convertir en index numérique
-
-    # ✅ Vérifier que cet index est bien dans la matrice utilisateur-article
-    if user_index >= user_item_matrix.shape[0]:
-        return {"statusCode": 404, "body": json.dumps({"error": f"Utilisateur {user_id} hors de la plage d'indexation"})}
-
-    # ✅ Vérifier si l'utilisateur a des interactions (évite des recommandations par défaut)
-    if user_item_matrix[user_index].nnz == 0:
-        return {"statusCode": 404, "body": json.dumps({"error": f"L'utilisateur {user_id} n'a aucune interaction"})}
-
-    # ✅ Générer les recommandations avec ALS
-    recommendations = model.recommend(user_index, user_item_matrix[user_index], N=5)
-
-    # ✅ Vérifier le nombre de recommandations générées
-    print(f"⚠️ Nombre total de recommandations générées: {len(recommendations[0])}, Attendu: {top_n}")
-
-    # ✅ Convertir les indices des articles en `article_id`
-    recommended_articles = [int(item_ids.cat.categories[i]) for i in recommendations[0]]
-
-    print(f"✅ Articles recommandés (ALS) pour {user_id} : {recommended_articles}")
-
-    return recommended_articles
-
-# ✅ Charger les données utilisateur-article au démarrage
-print("🔹 Chargement des données utilisateur/article...")
-interactions_df = load_interactions()
-user_item_matrix, user_ids, item_ids = build_user_item_matrix(interactions_df)
+# Initialisation du système de recommandation
+recommender = RecommenderSystem(
+    model_path="/var/task/recommender_model_implicit.pkl",
+    data_folder="/tmp/clicks/",
+    data_files=["clicks_sample.csv"]
+)
 
 # 📌 Fonction Lambda
 def lambda_handler(event, context):
@@ -150,9 +90,9 @@ def lambda_handler(event, context):
         return {"statusCode": 400, "body": json.dumps({"error": "Invalid user_id format"})}
 
     # ✅ Générer les recommandations ALS pour l'utilisateur
-    recommendations = recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids)
+    recommendations = recommender.recommend_articles(user_id)
 
-    # ✅ Vérifier si `recommend_articles_als()` a retourné une erreur
+    # ✅ Vérifier si `recommend_articles()` a retourné une erreur
     if isinstance(recommendations, dict):
         return recommendations  # Retourne directement l'erreur si elle existe
 
@@ -160,5 +100,3 @@ def lambda_handler(event, context):
         "statusCode": 200,
         "body": json.dumps({"user_id": user_id, "recommendations": recommendations})
     }
-
-

@@ -47,6 +47,10 @@ RUN pip install --no-cache-dir scikit-learn boto3 pandas numpy implicit
 # ✅ Copier le modèle entraîné depuis l’étape `train`
 COPY --from=train /tmp/recommender_model_hybrid.pkl /var/task/recommender_model_hybrid.pkl
 
+COPY --from=train /tmp/ /tmp/
+
+RUN ls -la /tmp
+
 # ✅ Copier le fichier de recommandation (Lambda handler)
 COPY hybrid_recommender.py .
 
