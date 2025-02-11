@@ -1,5 +1,5 @@
 # 🔹 Étape 1 : Base AWS Lambda
-FROM public.ecr.aws/lambda/python:3.10 as base
+FROM public.ecr.aws/lambda/python:3.8 as base
 
 # 🔹 Étape 2 : Entraînement du modèle
 FROM base AS train

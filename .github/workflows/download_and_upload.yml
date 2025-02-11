@@ -123,7 +123,7 @@ jobs:
                 --function-name HybridRecommenderLambda \
                 --memory-size 2048 \
                 --ephemeral-storage '{"Size": 512}' \
-                --timeout 305 \
+                --timeout 305 
               echo "✅ Déploiement terminé !"
               exit 0
             fi
