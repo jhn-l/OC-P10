@@ -13,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt boto3  implicit requests
 
 # ✅ Définir le chemin du modèle
-ENV MODEL_PATH=/tmp/recommender_model_hybrid.pkl
+ENV MODEL_PATH=/tmp/recommender_model_implicitt.pkl
 
 # ✅ Copier le script d'entraînement et l’exécuter
 COPY train_implicit.py .
@@ -28,10 +28,11 @@ ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
 ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 ENV AWS_REGION=${AWS_REGION}
 
-# Exécuter echo pour afficher les valeurs des variables (durant le build)
-RUN echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" && \
-    echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" && \
-    echo "AWS_REGION=$AWS_REGION"
+# # Exécuter echo pour afficher les valeurs des variables (durant le build)
+# RUN echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" && \
+#     echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" && \
+#     echo "AWS_REGION=$AWS_REGION"
+
 RUN python3 train_implicit.py
 
 # 🔹 Étape 3 : Construction de l’image finale pour AWS Lambda
@@ -49,9 +50,10 @@ COPY --from=train /tmp/recommender_model_implicit.pkl /var/task/recommender_mode
 
 COPY --from=train /tmp/ /tmp/
 
+RUN ls -la /var/task/
 RUN ls -la /tmp/
+RUN ls -la /tmp/clicks/ || echo "/tmp/clicks/ n'existe pas"
 
-RUN ls -la /tmp/clicks
 
 # ✅ Copier le fichier de recommandation (Lambda handler)
 COPY hybrid_recommender.py .
