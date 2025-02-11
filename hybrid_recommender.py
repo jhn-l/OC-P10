@@ -77,7 +77,7 @@ class RecommenderSystem:
         if self.user_item_matrix[user_index].nnz == 0:
             return {"statusCode": 404, "body": json.dumps({"error": f"L'utilisateur {user_id} n'a aucune interaction"})}
 
-        recommendations = self.model.recommend(user_index, self.user_item_matrix[user_index], N=top_n)
+        recommendations = self.model.recommend(user_index, self.user_item_matrix[user_index], N=5)
         recommended_articles = [int(self.item_ids.cat.categories[i]) for i in recommendations[0]]
 
         return recommended_articles
