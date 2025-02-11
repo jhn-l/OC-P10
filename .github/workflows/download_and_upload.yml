@@ -114,12 +114,24 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: |
-          aws lambda update-function-configuration \
-            --function-name HybridRecommenderLambda \
-            --memory-size 2048 \
-            --ephemeral-storage '{"Size": 512}' \
-            --timeout 305 \
-
+          echo "⚡ Vérification que la Lambda est active avant mise à jour..."
+          for i in {1..10}; do
+            STATUS=$(aws lambda get-function --function-name HybridRecommenderLambda --query 'Configuration.State' --output text)
+            if [ "$STATUS" == "Active" ]; then
+              echo "✅ Lambda est Active, mise à jour en cours..."
+              aws lambda update-function-configuration \
+                --function-name HybridRecommenderLambda \
+                --memory-size 2048 \
+                --ephemeral-storage '{"Size": 512}' \
+                --timeout 305 \
+              echo "✅ Déploiement terminé !"
+              exit 0
+            fi
+            echo "🕒 Attente que la Lambda soit Active... ($i/10)"
+            sleep 10
+          done
+          echo "❌ Échec : La Lambda est restée dans l'état 'Pending'."
+          exit 1
       - name: Déployer API Gateway
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
