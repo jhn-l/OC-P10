@@ -12,17 +12,20 @@ DYNAMODB_TABLE_NAME = "UserRecommendations"
 dynamodb = boto3.client("dynamodb")
 
 class RecommenderSystem:
-    def __init__(self, model_path, data_folder, data_files):
+    def __init__(self, model_path, data_folder):
         self.model_path = model_path
         self.data_folder = data_folder
-        self.data_files = data_files
+        self.data_files = self.get_data_files()
         self.model = self.load_model()
         self.interactions_df = self.load_interactions()
         self.user_item_matrix, self.user_ids, self.item_ids = self.build_user_item_matrix()
 
+    def get_data_files(self):
+        return [f for f in os.listdir(self.data_folder) if f.endswith(".csv")]
+
     def check_files_exist(self):
-        if not all(os.path.exists(os.path.join(self.data_folder, file)) for file in self.data_files):
-            raise FileNotFoundError("❌ Les fichiers de données ne sont pas disponibles dans /tmp/")
+        if not self.data_files:
+            raise FileNotFoundError("❌ Aucun fichier CSV trouvé dans /tmp/clicks/")
 
     def load_interactions(self):
         self.check_files_exist()
@@ -88,8 +91,7 @@ class RecommenderSystem:
 # Initialisation du système de recommandation
 recommender = RecommenderSystem(
     model_path="/var/task/recommender_model_implicit.pkl",
-    data_folder="/tmp/clicks/",
-    data_files=["clicks_sample.csv"]
+    data_folder="/tmp/clicks/"
 )
 
 # 📌 Fonction Lambda
