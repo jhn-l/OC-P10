@@ -6,6 +6,7 @@ import pandas as pd
 import scipy.sparse as sparse
 import implicit
 import boto3
+import subprocess
 
 # 📌 Paramètres DynamoDB
 DYNAMODB_TABLE_NAME = "UserRecommendations"
@@ -21,6 +22,10 @@ class RecommenderSystem:
         self.user_item_matrix, self.user_ids, self.item_ids = self.build_user_item_matrix()
 
     def get_data_files(self):
+        if not os.path.exists(self.data_folder):
+            output = subprocess.run(['ls', '-la', '/tmp'], capture_output=True, text=True)
+            print(f"📂 Contenu du répertoire /tmp :{output.stdout}")
+            raise FileNotFoundError(f"❌ Le dossier {self.data_folder} n'existe pas.")
         return [f for f in os.listdir(self.data_folder) if f.endswith(".csv")]
 
     def check_files_exist(self):
