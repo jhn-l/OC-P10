@@ -50,13 +50,9 @@ RUN yum install -y libgomp
 RUN pip install --no-cache-dir scikit-learn boto3 pandas numpy implicit
 
 # ✅ Copier le modèle entraîné depuis l’étape `train`
-COPY --from=train /tmp/recommender_model_implicit.pkl /var/task/recommender_model_implicit.pkl
-
-COPY --from=train /tmp/ /tmp/
+COPY --from=train /tmp/ /var/task/
 
 RUN ls -la /var/task/
-RUN ls -la /tmp/
-RUN ls -la /tmp/clicks/ || echo "/tmp/clicks/ n'existe pas"
 
 
 # ✅ Copier le fichier de recommandation (Lambda handler)
