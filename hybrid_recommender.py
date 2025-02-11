@@ -5,6 +5,11 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sparse
 import implicit
+import boto3
+
+# 📌 Paramètres DynamoDB
+DYNAMODB_TABLE_NAME = "UserRecommendations"
+dynamodb = boto3.client("dynamodb")
 
 class RecommenderSystem:
     def __init__(self, model_path, data_folder, data_files):
@@ -69,6 +74,17 @@ class RecommenderSystem:
 
         return recommended_articles
 
+    def store_recommendations_in_dynamodb(self, user_id, recommendations):
+        print(f"🚀 Stockage des recommandations pour {user_id} dans DynamoDB...")
+        dynamodb.put_item(
+            TableName=DYNAMODB_TABLE_NAME,
+            Item={
+                "user_id": {"S": str(user_id)},
+                "recommendations": {"L": [{"N": str(rec)} for rec in recommendations]}
+            }
+        )
+        print("✅ Recommandations sauvegardées avec succès.")
+
 # Initialisation du système de recommandation
 recommender = RecommenderSystem(
     model_path="/var/task/recommender_model_implicit.pkl",
@@ -95,6 +111,9 @@ def lambda_handler(event, context):
     # ✅ Vérifier si `recommend_articles()` a retourné une erreur
     if isinstance(recommendations, dict):
         return recommendations  # Retourne directement l'erreur si elle existe
+
+    # ✅ Stocker les recommandations dans DynamoDB
+    recommender.store_recommendations_in_dynamodb(user_id, recommendations)
 
     return {
         "statusCode": 200,
