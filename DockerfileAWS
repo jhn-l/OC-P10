@@ -6,7 +6,7 @@ FROM base AS train
 WORKDIR /var/task
 
 # ✅ Installer les outils de compilation pour `scikit-surprise`
-RUN yum install -y gcc gcc-c++ make libstdc++-devel
+#RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
 # ✅ Copier et installer les dépendances, y compris `boto3`
 COPY requirements.txt .
@@ -40,7 +40,7 @@ FROM base
 WORKDIR /var/task
 
 # ✅ Réinstaller les outils de compilation si nécessaire (utile pour `surprise`)
-RUN yum install -y gcc gcc-c++ make libstdc++-devel
+#RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
 # ✅ Installer `scikit-learn`, `surprise` et `boto3` pour l’inférence
 RUN pip install --no-cache-dir scikit-learn boto3 pandas numpy implicit
