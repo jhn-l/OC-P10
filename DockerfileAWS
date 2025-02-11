@@ -7,6 +7,8 @@ WORKDIR /var/task
 
 # ✅ Installer les outils de compilation pour `scikit-surprise`
 #RUN yum install -y gcc gcc-c++ make libstdc++-devel
+# ✅ Installer la lib OpenMP requise par `implicit`
+RUN yum install -y libgomp
 
 # ✅ Copier et installer les dépendances, y compris `boto3`
 COPY requirements.txt .
@@ -41,6 +43,8 @@ WORKDIR /var/task
 
 # ✅ Réinstaller les outils de compilation si nécessaire (utile pour `surprise`)
 #RUN yum install -y gcc gcc-c++ make libstdc++-devel
+# ✅ Installer la lib OpenMP requise par `implicit`
+RUN yum install -y libgomp
 
 # ✅ Installer `scikit-learn`, `surprise` et `boto3` pour l’inférence
 RUN pip install --no-cache-dir scikit-learn boto3 pandas numpy implicit
