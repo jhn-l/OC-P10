@@ -10,7 +10,7 @@ RUN yum install -y gcc gcc-c++ make libstdc++-devel
 
 # ✅ Copier et installer les dépendances, y compris `boto3`
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt boto3  implicit
+RUN pip install --no-cache-dir -r requirements.txt boto3  implicit requests
 
 # ✅ Définir le chemin du modèle
 ENV MODEL_PATH=/tmp/recommender_model_hybrid.pkl
