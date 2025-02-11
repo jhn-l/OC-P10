@@ -25,7 +25,8 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_LAMBDA_ROLE_ARN: ${{ secrets.AWS_LAMBDA_ROLE_ARN }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        run: python download_and_upload_s3.py
+        run: python -c "from download_and_upload_s3 import create_dynamodb_table, insert_sample_data; create_dynamodb_table(); insert_sample_data()"
+
       
       - name: 📦 Construire l'image Docker pour Lambda
         run: |
@@ -105,7 +106,13 @@ jobs:
           done
           echo "❌ Échec : La Lambda est restée dans l'état 'Pending'."
           exit 1
-      
+        run: |
+          aws lambda update-function-configuration \
+            --function-name HybridRecommenderLambda \
+            --memory-size 2048 \
+            --ephemeral-storage '{"Size": 512}' \
+            --timeout 305 \
+            
       - name: Déployer API Gateway
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

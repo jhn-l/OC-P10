@@ -24,7 +24,7 @@ class RecommenderSystem:
     def get_data_files(self):
         if not os.path.exists(self.data_folder):
             output = subprocess.run(['ls', '-la', '/tmp'], capture_output=True, text=True)
-            print(f"📂 Contenu du répertoire /tmp :{output.stdout}")
+            print(f"📂 Contenu du répertoire /tmp :\n{output.stdout}")
             raise FileNotFoundError(f"❌ Le dossier {self.data_folder} n'existe pas.")
         return [f for f in os.listdir(self.data_folder) if f.endswith(".csv")]
 
