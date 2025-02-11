@@ -40,6 +40,12 @@ class RecommenderSystem:
         interactions_df.rename(columns={"click_article_id": "article_id"}, inplace=True)
         interactions_df["article_id"] = interactions_df["article_id"].astype(int)
         interactions_df["user_id"] = interactions_df["user_id"].astype(int)
+        
+        # 📌 Donner plus de poids au dernier article visité
+        interactions_df["weight"] = 1  # Poids normal
+        if "timestamp" in interactions_df.columns:
+            interactions_df.loc[interactions_df.groupby("user_id")["timestamp"].idxmax(), "weight"] = 5  # Booster le dernier article
+        
         print(f"✅ Interactions chargées - Nombre de lignes: {interactions_df.shape[0]}")
         return interactions_df
 
@@ -49,7 +55,7 @@ class RecommenderSystem:
         item_ids = self.interactions_df["article_id"].astype("category")
 
         user_item_sparse = sparse.coo_matrix(
-            (np.ones(len(self.interactions_df)), 
+            (self.interactions_df["weight"], 
              (user_ids.cat.codes, item_ids.cat.codes))
         )
         print(f"✅ Matrice utilisateur-article créée : {user_item_sparse.shape[0]} utilisateurs, {user_item_sparse.shape[1]} articles.")
