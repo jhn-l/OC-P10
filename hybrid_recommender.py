@@ -119,7 +119,7 @@ def recommend_articles_als(user_id, model, user_item_matrix, user_ids, item_ids,
         return {"statusCode": 404, "body": json.dumps({"error": f"L'utilisateur {user_id} n'a aucune interaction"})}
 
     # ✅ Générer les recommandations avec ALS
-    recommendations = model.recommend(user_index, user_item_matrix[user_index], N=top_n)
+    recommendations = model.recommend(user_index, user_item_matrix[user_index], N=5)
 
     # ✅ Vérifier le nombre de recommandations générées
     print(f"⚠️ Nombre total de recommandations générées: {len(recommendations[0])}, Attendu: {top_n}")
