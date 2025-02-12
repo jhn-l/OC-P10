@@ -50,7 +50,7 @@ def extract_clicks_zip():
 
 # ✅ Charger les interactions utilisateur-article
 def load_interactions():
-    #extract_clicks_zip()
+    extract_clicks_zip()
     print("🔹 Chargement des interactions utilisateur-article...")
     all_files = [os.path.join(EXTRACTED_FOLDER, f) for f in os.listdir(EXTRACTED_FOLDER) if f.endswith(".csv")]
     
@@ -69,20 +69,12 @@ def load_interactions():
     interactions_df["user_id"] = interactions_df["user_id"].astype(int)
     interactions_df["click_timestamp"] = interactions_df["click_timestamp"].astype(int)  # S'assurer que c'est bien un entier
 
-    # 📌 Donner plus de poids aux derniers articles consultés (exponentiel)
-    interactions_df["weight"] = 1  # Poids de base
-    
-    def assign_weights(df):
-        df = df.sort_values(by="click_timestamp", ascending=False)
-        weights = [5, 3, 2]  # Pondération décroissante pour les 3 derniers articles
-        df.loc[df.index[:len(weights)], "weight"] = weights[:len(df)]
-        return df
-
-    interactions_df = interactions_df.groupby("user_id", group_keys=False).apply(assign_weights)
+    # 📌 Donner plus de poids au dernier article visité
+    interactions_df["weight"] = 1  # Poids normal
+    interactions_df.loc[interactions_df.groupby("user_id")["click_timestamp"].idxmax(), "weight"] = 5  # Booster le dernier article
     
     print(f"✅ Interactions chargées - Nombre de lignes: {interactions_df.shape[0]}")
     return interactions_df
-
 
 # ✅ Construire la matrice utilisateur-article en sparse
 def build_user_item_matrix(interactions_df):
