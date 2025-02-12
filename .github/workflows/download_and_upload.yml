@@ -57,7 +57,7 @@ jobs:
           docker tag implicit-recommender:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/implicit-recommender:latest
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/implicit-recommender:latest
       
-      - name: 🚀 Supprimer et recréer la Lambda Hybrid Recommender
+      - name: 🚀 Supprimer et recréer la Lambda Implicit Recommender
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -71,7 +71,7 @@ jobs:
             sleep 20  # Pause pour éviter tout conflit
           fi
           
-          echo "🚀 Création de la fonction Lambda HybridRecommender..."
+          echo "🚀 Création de la fonction Lambda ImplicitRecommender..."
           aws lambda create-function \
             --function-name ImplicitRecommenderLambda \
             --package-type Image \
