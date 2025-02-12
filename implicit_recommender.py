@@ -115,39 +115,35 @@ def lambda_handler(event, context):
     print("🚀 Exécution de la Lambda...")
     print(f"🚀 Événement reçu par Lambda : {json.dumps(event)}")
 
-    # 🔹 Vérification que le `body` existe
-    # if "body" not in event or not event["body"]:
-    #     return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `body` est absent ou vide"})}
+    # Vérifier que 'body' existe
+    body_str = event.get("body")
+    if not body_str:
+        return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `body` est absent ou vide"})}
 
-    # 🔹 Vérifier si le `body` est encodé en Base64 (parfois le cas avec API Gateway)
-    if event.get("isBase64Encoded", False):
-        import base64
-        body_str = base64.b64decode(event["body"]).decode("utf-8")
-    else:
-        body_str = event["body"]
-
-    # 🔹 Décoder le JSON du `body`
+    # Parser le JSON du body
     try:
-        body = json.loads(body_str)  # ✅ Décodage du JSON
-        user_id = body.get("user_id")
+        body = json.loads(body_str)
     except json.JSONDecodeError:
-        return {"statusCode": 400, "body": json.dumps({"error": "❌ Impossible de décoder le JSON du body"})}
+        return {"statusCode": 400, "body": json.dumps({"error": "❌ Impossible de parser le JSON du body"})}
 
+    # Vérifier que 'user_id' est présent
+    user_id = body.get("user_id")
     if not user_id:
-        return {"statusCode": 400, "body": json.dumps({"error": "❌ `user_id` est requis"})}
+        return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `user_id` est requis"})}
 
     try:
         user_id = int(user_id)
     except ValueError:
-        return {"statusCode": 400, "body": json.dumps({"error": "❌ `user_id` doit être un entier"})}
+        return {"statusCode": 400, "body": json.dumps({"error": "❌ Format de `user_id` invalide"})}
 
-    # 🔹 Générer les recommandations
+    # ✅ Générer les recommandations ALS pour l'utilisateur
     recommendations = recommender.recommend_articles(user_id)
 
+    # ✅ Vérifier si `recommend_articles()` a retourné une erreur
     if isinstance(recommendations, dict):
-        return recommendations  # Retourne directement l'erreur si existante
+        return recommendations
 
-    # 🔹 Stocker dans DynamoDB
+    # ✅ Stocker les recommandations dans DynamoDB
     recommender.store_recommendations_in_dynamodb(user_id, recommendations)
 
     return {
@@ -155,6 +151,5 @@ def lambda_handler(event, context):
         "body": json.dumps({"user_id": user_id, "recommendations": recommendations}),
         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
     }
-
 
 
