@@ -111,29 +111,48 @@ recommender = RecommenderSystem(
 )
 
 # 📌 Fonction Lambda
+import json
+
+# 📌 Fonction Lambda
 def lambda_handler(event, context):
     print("🚀 Exécution de la Lambda...")
     print(f"🚀 Événement reçu par Lambda : {json.dumps(event)}")
-    user_id = event.get("user_id")
-    if not user_id:
-        return {"statusCode": 400, "body": json.dumps({"error": "user_id is required"})}
 
     try:
-        user_id = int(user_id)
-    except ValueError:
-        return {"statusCode": 400, "body": json.dumps({"error": "Invalid user_id format"})}
+        # ✅ Vérifier si le corps de la requête est bien présent
+        if "body" not in event or not event["body"]:
+            raise ValueError("❌ Le champ `body` est manquant dans l'événement API Gateway")
 
-    # ✅ Générer les recommandations ALS pour l'utilisateur
-    recommendations = recommender.recommend_articles(user_id)
+        # ✅ Convertir `event["body"]` en dictionnaire
+        body = json.loads(event["body"])
 
-    # ✅ Vérifier si `recommend_articles()` a retourné une erreur
-    if isinstance(recommendations, dict):
-        return recommendations  # Retourne directement l'erreur si elle existe
+        # ✅ Vérifier si `user_id` est présent
+        if "user_id" not in body:
+            raise ValueError("❌ `user_id` est manquant dans la requête")
 
-    # ✅ Stocker les recommandations dans DynamoDB
-    recommender.store_recommendations_in_dynamodb(user_id, recommendations)
+        user_id = int(body["user_id"])
+        print(f"🔍 Génération des recommandations pour user_id : {user_id}")
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps({"user_id": user_id, "recommendations": recommendations})
-    }
+        # ✅ Générer les recommandations ALS
+        recommendations = recommender.recommend_articles(user_id)
+
+        # ✅ Vérifier si `recommend_articles()` a retourné une erreur
+        if isinstance(recommendations, dict):
+            return recommendations  # Retourne directement l'erreur si elle existe
+
+        # ✅ Stocker les recommandations dans DynamoDB
+        recommender.store_recommendations_in_dynamodb(user_id, recommendations)
+
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"user_id": user_id, "recommendations": recommendations})
+        }
+
+    except ValueError as ve:
+        print(f"⚠️ Erreur de validation : {str(ve)}")
+        return {"statusCode": 400, "body": json.dumps({"error": str(ve)})}
+
+    except Exception as e:
+        print(f"❌ Erreur inattendue : {str(e)}")
+        return {"statusCode": 500, "body": json.dumps({"error": "Internal Server Error", "details": str(e)})}
+
