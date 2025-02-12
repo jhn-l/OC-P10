@@ -114,21 +114,24 @@ recommender = RecommenderSystem(
 import json
 
 # 📌 Fonction Lambda
+import json
+
 def lambda_handler(event, context):
-    print("🚀 Exécution de la Lambda...")
     print(f"🚀 Événement reçu par Lambda : {json.dumps(event)}")
 
     try:
-        # ✅ Vérifier si le corps de la requête est bien présent
-        if "body" not in event or not event["body"]:
-            raise ValueError("❌ Le champ `body` est manquant dans l'événement API Gateway")
+        # ✅ Vérifier si `body` est présent et décodable
+        if "body" in event and event["body"]:
+            try:
+                body = json.loads(event["body"])  # Convertir en dictionnaire si `body` existe
+            except json.JSONDecodeError:
+                raise ValueError("❌ Le champ `body` n'est pas un JSON valide")
+        else:
+            body = event  # Si pas de `body`, prendre directement `event` (cas Proxy API Gateway)
 
-        # ✅ Convertir `event["body"]` en dictionnaire
-        body = json.loads(event["body"])
-
-        # ✅ Vérifier si `user_id` est présent
+        # ✅ Vérifier si `user_id` est bien présent
         if "user_id" not in body:
-            raise ValueError("❌ `user_id` est manquant dans la requête")
+            raise ValueError("❌ `user_id` est manquant dans la requête API Gateway")
 
         user_id = int(body["user_id"])
         print(f"🔍 Génération des recommandations pour user_id : {user_id}")
