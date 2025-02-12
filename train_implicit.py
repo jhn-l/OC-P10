@@ -50,7 +50,7 @@ def extract_clicks_zip():
 
 # ✅ Charger les interactions utilisateur-article
 def load_interactions():
-    extract_clicks_zip()
+    #extract_clicks_zip()
     print("🔹 Chargement des interactions utilisateur-article...")
     all_files = [os.path.join(EXTRACTED_FOLDER, f) for f in os.listdir(EXTRACTED_FOLDER) if f.endswith(".csv")]
     
