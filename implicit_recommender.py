@@ -111,29 +111,27 @@ recommender = RecommenderSystem(
 )
 
 # 📌 Fonction Lambda
-import json
-
-# 📌 Fonction Lambda
-import json
-
-import json
-
-import json
-
 def lambda_handler(event, context):
     print("🚀 Exécution de la Lambda...")
     print(f"🚀 Événement reçu par Lambda : {json.dumps(event)}")
 
-    # 🔹 Vérifier si le body est présent
+    # 🔹 Vérification que le `body` existe
     if "body" not in event or not event["body"]:
-        return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `body` est manquant dans l'événement API Gateway"})}
+        return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `body` est absent ou vide"})}
 
-    # 🔹 Extraire `user_id` depuis le body JSON
+    # 🔹 Vérifier si le `body` est encodé en Base64 (parfois le cas avec API Gateway)
+    if event.get("isBase64Encoded", False):
+        import base64
+        body_str = base64.b64decode(event["body"]).decode("utf-8")
+    else:
+        body_str = event["body"]
+
+    # 🔹 Décoder le JSON du `body`
     try:
-        body = json.loads(event["body"])  # ✅ Décodage du JSON
+        body = json.loads(body_str)  # ✅ Décodage du JSON
         user_id = body.get("user_id")
     except json.JSONDecodeError:
-        return {"statusCode": 400, "body": json.dumps({"error": "❌ Impossible de décoder le body JSON"})}
+        return {"statusCode": 400, "body": json.dumps({"error": "❌ Impossible de décoder le JSON du body"})}
 
     if not user_id:
         return {"statusCode": 400, "body": json.dumps({"error": "❌ `user_id` est requis"})}
@@ -157,5 +155,6 @@ def lambda_handler(event, context):
         "body": json.dumps({"user_id": user_id, "recommendations": recommendations}),
         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
     }
+
 
 
