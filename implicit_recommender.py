@@ -115,19 +115,19 @@ def lambda_handler(event, context):
     print("🚀 Exécution de la Lambda...")
     print(f"🚀 Événement reçu par Lambda : {json.dumps(event)}")
 
-    # Vérifier que 'body' existe
-    body_str = event.get("body")
-    if not body_str:
-        return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `body` est absent ou vide"})}
+    # # Vérifier que 'body' existe
+    # body_str = event.get("body")
+    # if not body_str:
+    #     return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `body` est absent ou vide"})}
 
-    # Parser le JSON du body
-    try:
-        body = json.loads(body_str)
-    except json.JSONDecodeError:
-        return {"statusCode": 400, "body": json.dumps({"error": "❌ Impossible de parser le JSON du body"})}
+    # # Parser le JSON du body
+    # try:
+    #     body = json.loads(body_str)
+    # except json.JSONDecodeError:
+    #     return {"statusCode": 400, "body": json.dumps({"error": "❌ Impossible de parser le JSON du body"})}
 
     # Vérifier que 'user_id' est présent
-    user_id = body.get("user_id")
+    user_id = event.get("user_id")
     if not user_id:
         return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `user_id` est requis"})}
 
