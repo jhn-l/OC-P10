@@ -116,46 +116,60 @@ import json
 # 📌 Fonction Lambda
 import json
 
+import json
+
 def lambda_handler(event, context):
+    print("🚀 Exécution de la Lambda...")
     print(f"🚀 Événement reçu par Lambda : {json.dumps(event)}")
 
     try:
-        # ✅ Vérifier si `body` est présent et décodable
-        if "body" in event and event["body"]:
-            try:
-                body = json.loads(event["body"])  # Convertir en dictionnaire si `body` existe
-            except json.JSONDecodeError:
-                raise ValueError("❌ Le champ `body` n'est pas un JSON valide")
-        else:
-            body = event  # Si pas de `body`, prendre directement `event` (cas Proxy API Gateway)
+        user_id = event.get("user_id")
+        if not user_id:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": "user_id is required"})
+            }
 
-        # ✅ Vérifier si `user_id` est bien présent
-        if "user_id" not in body:
-            raise ValueError("❌ `user_id` est manquant dans la requête API Gateway")
-
-        user_id = int(body["user_id"])
+        user_id = int(user_id)
         print(f"🔍 Génération des recommandations pour user_id : {user_id}")
 
-        # ✅ Générer les recommandations ALS
+        # ✅ Générer les recommandations ALS pour l'utilisateur
         recommendations = recommender.recommend_articles(user_id)
 
         # ✅ Vérifier si `recommend_articles()` a retourné une erreur
         if isinstance(recommendations, dict):
-            return recommendations  # Retourne directement l'erreur si elle existe
+            return {
+                "statusCode": 400,
+                "body": json.dumps(recommendations)
+            }
 
         # ✅ Stocker les recommandations dans DynamoDB
         recommender.store_recommendations_in_dynamodb(user_id, recommendations)
 
-        return {
+        response = {
             "statusCode": 200,
-            "body": json.dumps({"user_id": user_id, "recommendations": recommendations})
+            "body": json.dumps({
+                "user_id": user_id,
+                "recommendations": recommendations
+            }),
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            }
         }
 
-    except ValueError as ve:
-        print(f"⚠️ Erreur de validation : {str(ve)}")
-        return {"statusCode": 400, "body": json.dumps({"error": str(ve)})}
+        print(f"🚀 Réponse envoyée à API Gateway : {json.dumps(response)}")
+        return response
 
     except Exception as e:
         print(f"❌ Erreur inattendue : {str(e)}")
-        return {"statusCode": 500, "body": json.dumps({"error": "Internal Server Error", "details": str(e)})}
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": "Internal Server Error", "details": str(e)}),
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            }
+        }
+
 
