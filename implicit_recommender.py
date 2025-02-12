@@ -116,8 +116,8 @@ def lambda_handler(event, context):
     print(f"🚀 Événement reçu par Lambda : {json.dumps(event)}")
 
     # 🔹 Vérification que le `body` existe
-    if "body" not in event or not event["body"]:
-        return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `body` est absent ou vide"})}
+    # if "body" not in event or not event["body"]:
+    #     return {"statusCode": 400, "body": json.dumps({"error": "❌ Le champ `body` est absent ou vide"})}
 
     # 🔹 Vérifier si le `body` est encodé en Base64 (parfois le cas avec API Gateway)
     if event.get("isBase64Encoded", False):
