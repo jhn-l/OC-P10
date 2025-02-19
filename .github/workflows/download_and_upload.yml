@@ -3,8 +3,7 @@ name: Setup AWS Infrastructure & Upload Data
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - dev
 
 jobs:
   setup-infrastructure:
