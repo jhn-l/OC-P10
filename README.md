@@ -12,12 +12,12 @@ Le projet repose sur un système de recommandation basé sur le modèle ALS d'`i
 
 Dans cette étude, deux approches de recommandation ont été explorées :
 
-1. **Filtrage collaboratif implicite avec ALS (Alternating Least Squares)** : utilisé pour recommander des articles en fonction des interactions des utilisateurs.
-2. **Méthode alternative basée sur des heuristiques ou d'autres modèles** (expliqué dans `etude-des-modeles.ipynb`).
+1. **Méthode Collaboratif Filtering à l'aide de la librairie implicite avec ALS (Alternating Least Squares)** : utilisé pour recommander des articles en fonction des interactions des utilisateurs.
+2. **Méthode Content-Based Filtering** (expliqué dans `etude-des-modeles.ipynb`).
 
 ### Architecture retenue
 
-- **Backend Flask** : Gestion de l'API REST et interface web.
+- **Front Flask** : Gestion de l'API REST et interface web.
 - **Modèle ALS** : Entraînement et recommandation des articles.
 - **DynamoDB & AWS Lambda** : Stockage des recommandations et exécution serverless.
 - **Pipeline CI/CD avec GitHub Actions** : Déploiement et mise à jour automatique de l'infrastructure.
@@ -45,7 +45,9 @@ https://qtf8d0dzlk.execute-api.eu-north-1.amazonaws.com/dev/recommend
 Vous pouvez tester le fonctionnement de l'API en utilisant la commande `curl` suivante :
 
 ```bash
-curl -X POST "https://qtf8d0dzlk.execute-api.eu-north-1.amazonaws.com/dev/recommend"      -H "Content-Type: application/json"      -d '{"user_id": 115523}'
+curl -X POST "https://qtf8d0dzlk.execute-api.eu-north-1.amazonaws.com/dev/recommend"  
+-H "Content-Type: application/json"  
+-d '{"user_id": 115523}'
 ```
 
 ### Réponse attendue
